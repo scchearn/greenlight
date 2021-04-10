@@ -10,7 +10,7 @@ ENV_DISTRO_NAME=$NAME
 ENV_DISTRO_VERSION_FULL=$VERSION
 ENV_DISTRO_VERSION_ID=$VERSION_ID
 # This is the name of the app.
-readonly APPNAME="FOSS for ITSM"
+readonly APPNAME="Greenlight"
 # Generate password for environment
 if [[ -f /tmp/app.cache ]]; then
   # Check if there's an existing file and store the contents in a variable.
@@ -40,7 +40,7 @@ shopt -s nocasematch
 # TODO: Check how to work with coltable.
 # TODO: Build a mechanism to check lowest supported versions of OS.
 # TODO: Think about clean up
-# TODO: Need to add timezone information
+# TODO: Need to add timezone information. Get from: cat /etc/timezone
 
 # DECORATIONS
 # ASCII Logo
@@ -53,6 +53,20 @@ $COLOUR_LIGHT_YELLOW██╔══╝░░██║░░██║░╚══
 $COLOUR_LIGHT_YELLOW██║░░░░░╚█████╔╝██████╔╝██████╔╝$COLOUR_NC  $COLOUR_LIGHT_GREEN██║░░░░░╚█████╔╝██║░░██║$COLOUR_NC  $COLOUR_LIGHT_YELLOW██║░░░██║░░░██████╔╝██║░╚═╝░██║$COLOUR_NC
 $COLOUR_LIGHT_YELLOW╚═╝░░░░░░╚════╝░╚═════╝░╚═════╝░$COLOUR_NC  $COLOUR_LIGHT_GREEN╚═╝░░░░░░╚════╝░╚═╝░░╚═╝$COLOUR_NC  $COLOUR_LIGHT_YELLOW╚═╝░░░╚═╝░░░╚═════╝░╚═╝░░░░░╚═╝$COLOUR_NC
 "
+}
+
+show_ascii_alt() {
+  echo -e "
+
+╱╱╱╱╱╱╱╱╱╱╱╱╱╱╭╮╱╱╱╱╭╮╱╭╮
+╱╱╱╱╱╱╱╱╱╱╱╱╱╱┃┃╱╱╱╱┃┃╭╯╰╮
+╭━━┳━┳━━┳━━┳━╮┃┃╭┳━━┫╰┻╮╭╯
+┃╭╮┃╭┫┃━┫┃━┫╭╮┫┃┣┫╭╮┃╭╮┃┃
+┃╰╯┃┃┃┃━┫┃━┫┃┃┃╰┫┃╰╯┃┃┃┃╰╮
+╰━╮┣╯╰━━┻━━┻╯╰┻━┻┻━╮┣╯╰┻━╯
+╭━╯┃╱╱╱╱╱╱╱╱╱╱╱╱╱╭━╯┃
+╰━━╯╱╱╱╱╱╱╱╱╱╱╱╱╱╰━━╯
+  "
 }
 
 show_ascii_sml() {
@@ -69,7 +83,8 @@ TICK="[${COLOUR_LIGHT_GREEN}✓${COLOUR_NC}]" # Creates a box with a tick [✓]
 ERROR="[${COLOUR_LIGHT_RED}✗${COLOUR_NC}]" # Creates a box with a cross [✗]
 INFO="[${COLOUR_LIGHT_YELLOW}i${COLOUR_NC}]" # Box with an [i], for information.
 CHECK="[${COLOUR_LIGHT_PURPLE}\033[1m?\033[0m${COLOUR_NC}]" # Box with an [?], for validation.
-# Formatting fun
+BUSY="[${COLOUR_LIGHT_GREEN}◌${COLOUR_NC}]"
+# Formatting
 F_BOLD='\033[1m' # Bold formatting
 F_ITAL='\033[3m' # Italics
 F_END='\033[0m' # Ends formatting
@@ -106,6 +121,31 @@ run_as_user () {
   else
       sudo -i -u $APP_USER "$@"
   fi
+}
+
+get_timezone () {
+  local curlResult=$(curl 'https://ipapi.co/timezone' 2>&1;printf \\n$?)
+  local curlExitCode="${curlResult##*$'\n'}"
+  # Check if we can get a timezone from ipapi.co
+  if [[ "$curlExitCode" -eq 0 ]]; then
+    # if we can, assign it to a variable
+    ENV_TIMEZONE=$(echo "$curlResult" | awk 'NR==4{print $0}')
+    return 0
+  else
+    # otherwise, get it locally.
+    case $ENV_DISTRO in
+      'fedora' )
+        ENV_TIMEZONE=$(timedatectl | grep "Time zone" | sed -E "s/.*Time zone: (.*) \(.*/\1/")
+        return 0
+        ;;
+      'ubuntu' )
+        ENV_TIMEZONE=$(cat /etc/timezone)
+        return 0
+        ;;
+    esac
+    exit 1
+  fi
+  return 1
 }
 
 # VARIABLES
@@ -183,10 +223,11 @@ install_deps () {
   elif [[ "$ENV_DISTRO" == "ubuntu" ]]; then
     # List of packages
     local packages=${packages_ubuntu}
+    # TODO: Should probably do an apt update here.
     local download_size=$(yes n | apt install $packages 2>&1 | grep "Need to get" | sed "s/Need to get \(.*\) of archives./\1/")
 
       if [[ -z $download_size ]]; then
-        # TODO: There may be a flaw in this logic.
+        # TODO: There may be a flaw in the logic of only checking the download size. What if there's nothing to download, but something to update.
         printf " $TICK All dependencies installed.\\n"
       else
         printf " $INFO Dependencies download size: $download_size\\n"
@@ -223,6 +264,7 @@ install_deps () {
 install_zabbix () {
 # Recipe for Zabbix
 
+  get_timezone
   
   if [[ "$ENV_DISTRO" == "fedora" || "$ENV_DISTRO" == "ubuntu" ]]; then
 
@@ -253,15 +295,14 @@ install_zabbix () {
     printf \\n
 
     # Download and install Zabbix
-        printf " $INFO Downloading Zabbix...\\n"
+        printf " $INFO Downloading and installing Zabbix...\\n"
       # for Fedora
       # TODO: Add comments here.
         if [[ "$ENV_DISTRO" == "fedora" ]]; then
+          printf "  $BUSY Downloading... "
           wget -q -nc -P $ENV_TMP_DIR https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-agent-5.2.6-1.el8.x86_64.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-apache-conf-5.2.6-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-server-mysql-5.2.6-1.el8.x86_64.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-mysql-5.2.6-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-deps-5.2.6-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-5.2.6-1.el8.noarch.rpm
-          printf "  $TICK Done\\n"
-          # NOTE: Order of installation is important, but 
-          printf "  $INFO Installing...\\n"
-          # NOTE: This works
+          printf "done\\n"
+          printf "  $BUSY Installing...\\n"
           rpm -import https://repo.zabbix.com/RPM-GPG-KEY-ZABBIX-A14FE591
           rpm -ivh $ENV_TMP_DIR"/zabbix-*" > /dev/stdout
         fi
@@ -271,13 +312,14 @@ install_zabbix () {
           # Get the deb package from the Zabbix repo
           local url='https://repo.zabbix.com/zabbix/5.2/ubuntu/pool/main/z/zabbix-release/zabbix-release_5.2-1+ubuntu'$ENV_DISTRO_VERSION_ID'_all.deb'
           # TODO: Expand this error handling across the script.
+          printf "  $BUSY Downloading... "
           local wgetResult=$(wget -v -nc -P $ENV_TMP_DIR $url 2>&1; echo $?)
           local wgetExitCode="${wgetResult##*$'\n'}"
             if [[ $wgetExitCode != 0 ]]; then
               printf "  $ERROR [$wgetExitCode] Error occurred, couldn't download Zabbix at:\\n  -> $url\\n"
               exit 1
             fi
-          printf "  $TICK Done\\n"
+          printf "done.\\n"
 
           printf "  $INFO Installing... "
           local filename=$(ls /tmp/zabbix/zabbix-*)
@@ -287,10 +329,13 @@ install_zabbix () {
               printf "  $ERROR [$dpkgExitCode] Error occurred, couldn't install Zabbix.\\n"
               exit 1
             fi
-
-          apt update -y > /dev/null 2>&1
+          # TODO: Check if this breaks the  script. 
+          # apt update -y > /dev/null 2>&1
           apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-agent > /dev/null 2>&1
           printf "done\\n"
+          # Set timezone in /etc/zabbix/apache.conf file.
+          # printf "  $INFO Setting installation timezone to: $COLOUR_LIGHT_PURPLE$ENV_TIMEZONE$COLOUR_NC\\n"
+          # sed -E -i 's/(^.*)(# php_value date.timezone).*/\1php_value date.timezone '$(echo $ENV_TIMEZONE | sed 's/\//\\\//g')'/' /etc/zabbix/apache.conf
         fi
 
     # Give some space
@@ -311,7 +356,8 @@ install_zabbix () {
           done
           printf "  $TICK Adding firewall rules... "
           # add firewall rules for http and https.
-          firewall-cmd --permanent --add-service=http --add-service=https --add-port=10050-10051/tcp > /dev/null 2>&1
+          firewall-cmd --permanent --add-service=http --add-service=https > /dev/null 2>&1
+          firewall-cmd --permanent --add-port=10050-10051/tcp > /dev/null 2>&1
           printf "done.\\n"
         fi
       # for Ubuntu
@@ -341,34 +387,37 @@ install_zabbix () {
       printf " $INFO Preparing database...\\n"
       # Set the root mysql password and,
       mysqladmin -u root password "$ENV_PASSWORD" > /dev/null 2>&1
-      printf "  $INFO First, let's secure the database...\\n"
+      printf "  $BUSY Securing database... "
       # do some securing. Based on the actions performed by the mysql_secure_installation command.
       mysql -u root -p"$ENV_PASSWORD" -e "UPDATE mysql.user SET Password=PASSWORD('$ENV_PASSWORD') WHERE User='root'" > /dev/null 2>&1
       mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')" > /dev/null 2>&1
       mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User=''" > /dev/null 2>&1
       mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%'" > /dev/null 2>&1
       mysql -u root -p"$ENV_PASSWORD" -e "FLUSH PRIVILEGES" > /dev/null 2>&1
-      printf "  $TICK Done\\n"
+      printf "done.\\n"
     
     # Give some space
     # printf \\n
     
     # Database
-      printf "  $INFO Creating database...\\n"
+      printf "  $BUSY Creating database... "
       # Create the Zabbix database and user and grant privileges
       mysql -u root -p"$ENV_PASSWORD" -e "CREATE USER 'zabbix'@localhost IDENTIFIED BY '$ENV_PASSWORD'" > /dev/null 2>&1
       mysql -u root -p"$ENV_PASSWORD" -e "CREATE DATABASE zabbix character set utf8 collate utf8_bin" > /dev/null 2>&1
       mysql -u root -p"$ENV_PASSWORD" -e "GRANT all privileges on zabbix.* to zabbix@localhost" > /dev/null 2>&1
       # Add the database password to zabbix_server.conf file with some regex magic
       sed -E -i 's/(^# DBPassword*=)/DBPassword='$ENV_PASSWORD'/' /etc/zabbix/zabbix_server.conf
-      printf "  $TICK Done\\n"
+      printf "done.\\n"
 
       # Load Zabbix schema from file
-        printf "  $INFO Loading Zabbix DB schema...\\n"
+        printf "  $INFO Loading Zabbix DB schema... "
         # Check if the schema file exists,
         if [[ -f /usr/share/doc/zabbix-server-mysql/create.sql.gz ]]; then
           # and pipe the contents to mysql.
           zcat /usr/share/doc/zabbix-server-mysql/create.sql.gz | mysql -u zabbix -D zabbix -p"$ENV_PASSWORD" > /dev/null 2>&1
+          printf "done.\\n"
+        else
+          printf "already loaded.\\n"
         fi
 
       printf "  $TICK Done\\n"
@@ -381,11 +430,11 @@ install_zabbix () {
     # TODO: Check if init 1; init 3 really is the best way to do this.
       printf " Initialising... "
       init 1; init 3
+      # init 3
       printf "done, thank you.\\n\\n"
     
     # Clean up
       rm -R $ENV_TMP_DIR
-
   else
     printf "Nothing to do\\n"
   fi
