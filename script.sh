@@ -186,8 +186,9 @@ install_deps () {
 
   # Dependencies differ between distributions, define them here.
   local packages_fedora='httpd php php-fpm php-mysqlnd php-ldap php-bcmath php-mbstring php-gd php-pdo php-xml mariadb mariadb-server mariadb-devel OpenIPMI-libs fping libssh2 net-snmp-libs unixODBC'
-  local packages_ubuntu='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php libapache2-mod-php7.2 libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient20 libodbc1 libopenipmi0 libsnmp-base libsnmp30 libssh-4 mysql-client mysql-client-5.7 mysql-client-core-5.7 mysql-common mysql-server php-bcmath php-common php-gd php-ldap php-mbstring php-mysql php-xml php7.2-bcmath php7.2-cli php7.2-common php7.2-gd php7.2-json php7.2-ldap php7.2-mbstring php7.2-mysql php7.2-opcache php7.2-readline php7.2-xml snmpd ssl-cert'
-  
+  local packages_ubuntu_18='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php libapache2-mod-php7.2 libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient20 libodbc1 libopenipmi0 libsnmp-base libsnmp30 libssh-4 mysql-client mysql-client-5.7 mysql-client-core-5.7 mysql-common mysql-server php-bcmath php-common php-gd php-ldap php-mbstring php-mysql php-xml php7.2-bcmath php7.2-cli php7.2-common php7.2-gd php7.2-json php7.2-ldap php7.2-mbstring php7.2-mysql php7.2-opcache php7.2-readline php7.2-xml snmpd ssl-cert'
+  local packages_ubuntu_20='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient21 libodbc1 libopenipmi0 libsnmp-base libsnmp35 libssh-4 mariadb-client mariadb-server php php-bcmath php-cli php-common php-gd php-json php-ldap php-mbstring php-mysql php-opcache php-readline php-xml snmpd ssl-cert'
+
   # Fedora Install
   if [[ "$ENV_DISTRO" == "fedora" ]]; then
     # List of packages
@@ -221,8 +222,17 @@ install_deps () {
   # Ubuntu Install
   elif [[ "$ENV_DISTRO" == "ubuntu" ]]; then
     # List of packages
-    local packages=${packages_ubuntu}
-    # TODO: Should probably do an apt update here.
+    # We have to check our OS version, packages are different.
+    if [[ "$ENV_DISTRO_VERSION_ID" == "20.04" ]]; then
+      local packages=${packages_ubuntu_20}
+    elif [[ "$ENV_DISTRO_VERSION_ID" == "18.04" ]]; then
+      local packages=${packages_ubuntu_18}
+    else
+      # TODO: Print a error message here to tell the user we only support Ubuntu 18.04 and 20.04
+      printf ""
+      exit 1
+    fi
+
     local download_size=$(yes n | apt install $packages 2>&1 | grep "Need to get" | sed "s/Need to get \(.*\) of archives./\1/")
 
       if [[ -z $download_size ]]; then
@@ -236,14 +246,14 @@ install_deps () {
           # Run the command in a subshell and save the results to a variable,
           local execute=$(apt install -y $p 2>&1)
           # then check the output for information. 
-          if [[ $execute =~ "unable to locate package" ]]; then
             # Package not available
+          if [[ $execute =~ "unable to locate package" ]]; then
             printf "can't find "$COLOUR_LIGHT_RED$p$COLOUR_NC".\\n"
-          elif [[ $execute =~ "already the newest version" ]]; then
             # Package already installed
+          elif [[ $execute =~ "already the newest version" ]]; then
             printf "already installed.\\n"
-          elif [[ $execute =~ "newly installed" ]]; then
             # Installed!
+          elif [[ $execute =~ "newly installed" ]]; then
             printf "done.\\n"
           # Any errors will go here.
           else
@@ -311,6 +321,7 @@ install_zabbix () {
           # Get the deb package from the Zabbix repo
           local url='https://repo.zabbix.com/zabbix/5.2/ubuntu/pool/main/z/zabbix-release/zabbix-release_5.2-1+ubuntu'$ENV_DISTRO_VERSION_ID'_all.deb'
           # TODO: Expand this error handling across the script.
+          # TODO: Add comments to this section.
           printf "  $BUSY Downloading... "
           local wgetResult=$(wget -v -nc -P $ENV_TMP_DIR $url 2>&1; echo $?)
           local wgetExitCode="${wgetResult##*$'\n'}"
@@ -328,13 +339,12 @@ install_zabbix () {
               printf "  $ERROR [$dpkgExitCode] Error occurred, couldn't install Zabbix.\\n"
               exit 1
             fi
-          # TODO: Check if this breaks the  script. 
           apt update -y > /dev/null 2>&1
           apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-agent > /dev/null 2>&1
           printf "done\\n"
           # Set timezone in /etc/zabbix/apache.conf file.
-          # printf "  $INFO Setting installation timezone to: $COLOUR_LIGHT_PURPLE$ENV_TIMEZONE$COLOUR_NC\\n"
-          # sed -E -i 's/(^.*)(# php_value date.timezone).*/\1php_value date.timezone '$(echo $ENV_TIMEZONE | sed 's/\//\\\//g')'/' /etc/zabbix/apache.conf
+          printf "  $INFO Setting installation timezone to: $COLOUR_LIGHT_PURPLE$ENV_TIMEZONE$COLOUR_NC\\n"
+          sed -E -i 's/(^.*)(# php_value date.timezone).*/\1php_value date.timezone '$(echo $ENV_TIMEZONE | sed 's/\//\\\//g')'/' /etc/zabbix/apache.conf
         fi
 
     # Give some space
@@ -348,13 +358,13 @@ install_zabbix () {
           # Let's go through the list of services and enable them
           for service in $services; do
             printf "  $TICK Enabling $service... "
-            # Start and enable the service with systemctl and,
+            # enable them one by one.
             systemctl enable --now $service > /dev/null 2>&1
             printf "done.\\n"
             # TODO: No error handling here
           done
           printf "  $TICK Adding firewall rules... "
-          # add firewall rules for http and https.
+          # Add firewall rules to open the necessary ports.
           firewall-cmd --permanent --add-service=http --add-service=https > /dev/null 2>&1
           firewall-cmd --permanent --add-port=10050-10051/tcp > /dev/null 2>&1
           printf "done.\\n"
@@ -365,13 +375,13 @@ install_zabbix () {
           # Let's go through the list of services and enable them
           for service in $services; do
             printf "  $TICK Enabling $service... "
-            # Start and enable the service with systemctl and,
+            # enable them one by one.
             systemctl enable --now $service > /dev/null 2>&1
             printf "done.\\n"
             # TODO: No error handling here
           done
           printf "  $TICK Adding firewall rules... "
-          # add firewall rules.
+          # Add firewall rules to open the necessary ports.
           ufw allow 80/tcp > /dev/null 2>&1
           ufw allow 443/tcp > /dev/null 2>&1
           ufw allow 10050/tcp > /dev/null 2>&1
@@ -386,42 +396,26 @@ install_zabbix () {
       printf " $INFO Preparing database...\\n"
       # Set the root mysql password and,
       printf "  $BUSY Securing database... "
-      # do some securing. Based on the actions performed by the mysql_secure_installation command.
-      
-        # printf "[->] mysqladmin -u root password $ENV_PASSWORD\\n"
+      # secure the database. Based on the actions performed by the mysql_secure_installation command.
       mysqladmin -u root password "$ENV_PASSWORD" > /dev/null 2>&1
-        
-        # printf "[->] UPDATE mysql.user SET Password=PASSWORD('$ENV_PASSWORD') WHERE User='root'\\n"
-      # mysql -u root -p "$ENV_PASSWORD" -e "UPDATE mysql.user SET Password=PASSWORD('$ENV_PASSWORD') WHERE User='root'" > /dev/null 2>&1
-      
-        # printf "[->] DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')\\n"
       mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')" > /dev/null 2>&1
-        
-        # printf "[->] DELETE FROM mysql.user WHERE User=''\\n"
       mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User=''" > /dev/null 2>&1
-      
-        # printf "[->] DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%'\\n"
       mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%'" > /dev/null 2>&1
-      
-        # printf "[->] FLUSH PRIVILEGES\\n"
       mysql -u root -p"$ENV_PASSWORD" -e "FLUSH PRIVILEGES" > /dev/null 2>&1
       printf "done.\\n"
-    
-    # Give some space
-    # printf \\n
     
     # Database
       printf "  $BUSY Creating database... "
       # Create the Zabbix database and user and grant privileges
       mysql -u root -p"$ENV_PASSWORD" -e "CREATE USER 'zabbix'@localhost IDENTIFIED BY '$ENV_PASSWORD'" > /dev/null 2>&1
       mysql -u root -p"$ENV_PASSWORD" -e "CREATE DATABASE zabbix character set utf8 collate utf8_bin" > /dev/null 2>&1
-      mysql -u root -p"$ENV_PASSWORD" -e "GRANT all privileges on zabbix.* to zabbix@localhost" > /dev/null 2>&1
+      mysql -u root -p"$ENV_PASSWORD" -e "GRANT ALL PRIVILEGES ON zabbix.* TO zabbix@localhost" > /dev/null 2>&1
       # Add the database password to zabbix_server.conf file with some regex magic
       sed -E -i 's/(^# DBPassword*=)/DBPassword='$ENV_PASSWORD'/' /etc/zabbix/zabbix_server.conf
       printf "done.\\n"
 
       # Load Zabbix schema from file
-        printf "  $INFO Loading Zabbix DB schema... "
+        printf "  $INFO Loading Zabbix DB schema (this might take a while)... "
         # Check if the schema file exists,
         if [[ -f /usr/share/doc/zabbix-server-mysql/create.sql.gz ]]; then
           # and pipe the contents to mysql.
@@ -431,7 +425,6 @@ install_zabbix () {
           printf "already loaded.\\n"
         fi
 
-      printf "  $TICK Done\\n"
       printf "  $TICK$F_BOLD Database password [keep it in a safe place]$F_END: $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC\\n"
 
     # Give some space
@@ -473,4 +466,4 @@ show_ascii_logo
 # printf " $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC\\n"
 
 # install_deps
-install_zabbix 
+# install_zabbix 
