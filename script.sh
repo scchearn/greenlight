@@ -1,7 +1,23 @@
 #!/bin/bash
-# Name of my framework
+# TODO: Add app information and license here.
 
-# INITIAL
+# Some things to remember
+# TODO: Check how to work with coltable.
+# TODO: Build a mechanism to check lowest supported versions of OS.
+# TODO: Think about clean up
+# TODO: Need to add timezone information. Get from: cat /etc/timezone
+
+# =================================================
+#   DO THESE THINGS FIRST
+# =================================================
+
+# Check if we have root privileges
+if [[ "$(id -u)" != "0" ]]; then
+  # TODO: Make this a bit prettier with more information.
+  # TODO: Add comments.
+  printf "$COLOUR_LIGHT_RED""Please execute his script as root or sudo\\n""$COLOUR_NC"
+  exit 0
+fi
 # Get environment details, like the distribution
 source /etc/os-release
 # OS detection
@@ -26,52 +42,38 @@ else
   chmod 600 /tmp/app.cache
 fi
 
-# -e option instructs bash to immediately exit if any command [1] has a non-zero exit status
-# We do not want users to end up with a partially working install, so we exit the script
-# instead of continuing the installation with something broken
+# -e option instructs bash to exit immediately if a simple command exits with a non-zero
+# status, unless the command that fails is part of an until or while loop, part of an
+# if statement, part of a && or || list, or if the command's return status
+# is being inverted using !.  -o errexit
 # set -e
+
+# -e option instructs bash to print a trace of simple commands and their arguments
+# after they are expanded and before they are executed. -o xtrace
 # set -x
 
 # Bash matches patterns in a case-insensitive fashion when performing matching
 # while executing case or [[ conditional commands.
 shopt -s nocasematch
 
-# Some things to remember
-# TODO: Check how to work with coltable.
-# TODO: Build a mechanism to check lowest supported versions of OS.
-# TODO: Think about clean up
-# TODO: Need to add timezone information. Get from: cat /etc/timezone
+# =================================================
+#   DECORATIONS
+# =================================================
 
-# DECORATIONS
 # ASCII Logo
-show_ascii_big() {
+show_ascii_logo() {
   echo -e "
-$COLOUR_LIGHT_YELLOW███████╗░█████╗░░██████╗░██████╗$COLOUR_NC  $COLOUR_LIGHT_GREEN███████╗░█████╗░██████╗░$COLOUR_NC  $COLOUR_LIGHT_YELLOW██╗████████╗░██████╗███╗░░░███╗$COLOUR_NC
-$COLOUR_LIGHT_YELLOW██╔════╝██╔══██╗██╔════╝██╔════╝$COLOUR_NC  $COLOUR_LIGHT_GREEN██╔════╝██╔══██╗██╔══██╗$COLOUR_NC  $COLOUR_LIGHT_YELLOW██║╚══██╔══╝██╔════╝████╗░████║$COLOUR_NC
-$COLOUR_LIGHT_YELLOW█████╗░░██║░░██║╚█████╗░╚█████╗░$COLOUR_NC  $COLOUR_LIGHT_GREEN█████╗░░██║░░██║██████╔╝$COLOUR_NC  $COLOUR_LIGHT_YELLOW██║░░░██║░░░╚█████╗░██╔████╔██║$COLOUR_NC
-$COLOUR_LIGHT_YELLOW██╔══╝░░██║░░██║░╚═══██╗░╚═══██╗$COLOUR_NC  $COLOUR_LIGHT_GREEN██╔══╝░░██║░░██║██╔══██╗$COLOUR_NC  $COLOUR_LIGHT_YELLOW██║░░░██║░░░░╚═══██╗██║╚██╔╝██║$COLOUR_NC
-$COLOUR_LIGHT_YELLOW██║░░░░░╚█████╔╝██████╔╝██████╔╝$COLOUR_NC  $COLOUR_LIGHT_GREEN██║░░░░░╚█████╔╝██║░░██║$COLOUR_NC  $COLOUR_LIGHT_YELLOW██║░░░██║░░░██████╔╝██║░╚═╝░██║$COLOUR_NC
-$COLOUR_LIGHT_YELLOW╚═╝░░░░░░╚════╝░╚═════╝░╚═════╝░$COLOUR_NC  $COLOUR_LIGHT_GREEN╚═╝░░░░░░╚════╝░╚═╝░░╚═╝$COLOUR_NC  $COLOUR_LIGHT_YELLOW╚═╝░░░╚═╝░░░╚═════╝░╚═╝░░░░░╚═╝$COLOUR_NC
-"
-}
-
-show_ascii_alt() {
-  echo -e "
-
-╱╱╱╱╱╱╱╱╱╱╱╱╱╱╭╮╱╱╱╱╭╮╱╭╮
-╱╱╱╱╱╱╱╱╱╱╱╱╱╱┃┃╱╱╱╱┃┃╭╯╰╮
-╭━━┳━┳━━┳━━┳━╮┃┃╭┳━━┫╰┻╮╭╯
-┃╭╮┃╭┫┃━┫┃━┫╭╮┫┃┣┫╭╮┃╭╮┃┃
-┃╰╯┃┃┃┃━┫┃━┫┃┃┃╰┫┃╰╯┃┃┃┃╰╮
-╰━╮┣╯╰━━┻━━┻╯╰┻━┻┻━╮┣╯╰┻━╯
-╭━╯┃╱╱╱╱╱╱╱╱╱╱╱╱╱╭━╯┃
-╰━━╯╱╱╱╱╱╱╱╱╱╱╱╱╱╰━━╯
+╱╱╱╱╱╱╱╱╱╱╱╱╱╱$COLOUR_LIGHT_GREEN╭╮$COLOUR_NC╱╱╱╱$COLOUR_LIGHT_GREEN╭╮$COLOUR_NC╱$COLOUR_LIGHT_GREEN╭╮$COLOUR_NC
+╱╱╱╱╱╱╱╱╱╱╱╱╱╱$COLOUR_LIGHT_GREEN┃┃$COLOUR_NC╱╱╱╱$COLOUR_LIGHT_GREEN┃┃╭╯╰╮$COLOUR_NC
+$COLOUR_LIGHT_GREEN╭━━┳━┳━━┳━━┳━╮┃┃╭┳━━┫╰┻╮╭╯$COLOUR_NC
+$COLOUR_LIGHT_GREEN┃╭╮┃╭┫┃━┫┃━┫╭╮┫┃┣┫╭╮┃╭╮┃┃$COLOUR_NC
+$COLOUR_LIGHT_GREEN┃╰╯┃┃┃┃━┫┃━┫┃┃┃╰┫┃╰╯┃┃┃┃╰╮$COLOUR_NC
+$COLOUR_LIGHT_GREEN╰━╮┣╯╰━━┻━━┻╯╰┻━┻┻━╮┣╯╰┻━╯$COLOUR_NC
+$COLOUR_LIGHT_GREEN╭━╯┃$COLOUR_NC╱╱╱╱╱╱╱╱╱╱╱╱╱$COLOUR_LIGHT_GREEN╭━╯┃$COLOUR_NC
+$COLOUR_LIGHT_GREEN╰━━╯$COLOUR_NC╱╱╱╱╱╱╱╱╱╱╱╱╱$COLOUR_LIGHT_GREEN╰━━╯$COLOUR_NC
   "
 }
 
-show_ascii_sml() {
-  echo -e "$COLOUR_LIGHT_GREEN🄵🄾🅂🅂 🄵🄾🅁 🄸🅃🅂🄼$COLOUR_NC"
-}
 # Set some colours we can use throughout the script.
 COLOUR_NC='\e[0m' # No Colour
 COLOUR_LIGHT_RED='\e[1;31m' # Red
@@ -90,12 +92,9 @@ F_ITAL='\033[3m' # Italics
 F_END='\033[0m' # Ends formatting
 F_CR='\\r'
 
-if [[ "$(id -u)" != "0" ]]; then
-  # TODO: Make this a bit prettier with more information.
-  # TODO: Add comments.
-  printf "$COLOUR_LIGHT_RED""Please execute his script as root or sudo\\n""$COLOUR_NC"
-  exit 0
-fi
+# =================================================
+#   FUNCTIONS
+# =================================================
 
 unfinished_install () {
 # Check for aborted or failed installations
@@ -200,7 +199,7 @@ install_deps () {
 
     # Loop through the list above and install each package
     for p in $packages; do
-      printf "  $INFO Installing $COLOUR_LIGHT_GREEN$p$COLOUR_NC... "
+      printf "  $BUSY Installing $COLOUR_LIGHT_GREEN$p$COLOUR_NC... "
       # Run the command in a subshell and save the results to a variable,
       local execute=$(dnf install -y $p 2>&1)
       # then check the output for information. 
@@ -233,7 +232,7 @@ install_deps () {
         printf " $INFO Dependencies download size: $download_size\\n"
         # Loop through the list above and install each package
         for p in $packages; do
-          printf "  $INFO Installing $COLOUR_LIGHT_GREEN$p$COLOUR_NC... "
+          printf "  $BUSY Installing $COLOUR_LIGHT_GREEN$p$COLOUR_NC... "
           # Run the command in a subshell and save the results to a variable,
           local execute=$(apt install -y $p 2>&1)
           # then check the output for information. 
@@ -321,7 +320,7 @@ install_zabbix () {
             fi
           printf "done.\\n"
 
-          printf "  $INFO Installing... "
+          printf "  $BUSY Installing... "
           local filename=$(ls /tmp/zabbix/zabbix-*)
           local dpkgResult=$(dpkg -i $filename 2>&1; echo $?)
           local dpkgExitCode="${dpkgResult##*$'\n'}"
@@ -330,7 +329,7 @@ install_zabbix () {
               exit 1
             fi
           # TODO: Check if this breaks the  script. 
-          # apt update -y > /dev/null 2>&1
+          apt update -y > /dev/null 2>&1
           apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-agent > /dev/null 2>&1
           printf "done\\n"
           # Set timezone in /etc/zabbix/apache.conf file.
@@ -386,13 +385,25 @@ install_zabbix () {
     # Prepare SQL database
       printf " $INFO Preparing database...\\n"
       # Set the root mysql password and,
-      mysqladmin -u root password "$ENV_PASSWORD" > /dev/null 2>&1
       printf "  $BUSY Securing database... "
       # do some securing. Based on the actions performed by the mysql_secure_installation command.
-      mysql -u root -p"$ENV_PASSWORD" -e "UPDATE mysql.user SET Password=PASSWORD('$ENV_PASSWORD') WHERE User='root'" > /dev/null 2>&1
+      
+        # printf "[->] mysqladmin -u root password $ENV_PASSWORD\\n"
+      mysqladmin -u root password "$ENV_PASSWORD" > /dev/null 2>&1
+        
+        # printf "[->] UPDATE mysql.user SET Password=PASSWORD('$ENV_PASSWORD') WHERE User='root'\\n"
+      # mysql -u root -p "$ENV_PASSWORD" -e "UPDATE mysql.user SET Password=PASSWORD('$ENV_PASSWORD') WHERE User='root'" > /dev/null 2>&1
+      
+        # printf "[->] DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')\\n"
       mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')" > /dev/null 2>&1
+        
+        # printf "[->] DELETE FROM mysql.user WHERE User=''\\n"
       mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User=''" > /dev/null 2>&1
+      
+        # printf "[->] DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%'\\n"
       mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%'" > /dev/null 2>&1
+      
+        # printf "[->] FLUSH PRIVILEGES\\n"
       mysql -u root -p"$ENV_PASSWORD" -e "FLUSH PRIVILEGES" > /dev/null 2>&1
       printf "done.\\n"
     
@@ -448,6 +459,7 @@ install_snipeit () {
 
 # RUN STUFF
 # show_ascii_big
+show_ascii_logo
 # show_ascii_sml
 # distro_check
 # get_org_var
