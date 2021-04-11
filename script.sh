@@ -186,7 +186,8 @@ install_deps () {
 
   # Dependencies differ between distributions, define them here.
   local packages_fedora='httpd php php-fpm php-mysqlnd php-ldap php-bcmath php-mbstring php-gd php-pdo php-xml mariadb mariadb-server mariadb-devel OpenIPMI-libs fping libssh2 net-snmp-libs unixODBC'
-  local packages_ubuntu_18='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php libapache2-mod-php7.2 libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient20 libodbc1 libopenipmi0 libsnmp-base libsnmp30 libssh-4 mysql-client mysql-client-5.7 mysql-client-core-5.7 mysql-common mysql-server php-bcmath php-common php-gd php-ldap php-mbstring php-mysql php-xml php7.2-bcmath php7.2-cli php7.2-common php7.2-gd php7.2-json php7.2-ldap php7.2-mbstring php7.2-mysql php7.2-opcache php7.2-readline php7.2-xml snmpd ssl-cert'
+  # TODO: Check to install PHP7.3 on 18.04 as SnipeIT requires it.
+  local packages_ubuntu_18='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php7.4 libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient20 libodbc1 libopenipmi0 libsnmp-base libsnmp30 libssh-4 mysql-client mysql-client-5.7 mysql-client-core-5.7 mysql-common mysql-server php7.4 php7.4-bcmath php7.4-cli php7.4-common php7.4-curl php7.4-gd php7.4-json php7.4-ldap php7.4-mbstring php7.4-mysql php7.4-opcache php7.4-readline php7.4-xml php7.4-zip snmpd ssl-cert'
   local packages_ubuntu_20='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient21 libodbc1 libopenipmi0 libsnmp-base libsnmp35 libssh-4 mariadb-client mariadb-server php php-bcmath php-cli php-common php-gd php-json php-ldap php-mbstring php-mysql php-opcache php-readline php-xml snmpd ssl-cert'
 
   # Fedora Install
@@ -222,11 +223,14 @@ install_deps () {
   # Ubuntu Install
   elif [[ "$ENV_DISTRO" == "ubuntu" ]]; then
     # List of packages
-    # We have to check our OS version, packages are different.
+    # We have to check our OS version, packages are different and some needs extra repositories.
     if [[ "$ENV_DISTRO_VERSION_ID" == "20.04" ]]; then
       local packages=${packages_ubuntu_20}
     elif [[ "$ENV_DISTRO_VERSION_ID" == "18.04" ]]; then
       local packages=${packages_ubuntu_18}
+      # Add PHP7.4 repository
+      apt -y install software-properties-common  > /dev/null 2>&1
+      add-apt-repository -y ppa:ondrej/php  > /dev/null 2>&1
     else
       # TODO: Print a error message here to tell the user we only support Ubuntu 18.04 and 20.04
       printf ""
@@ -466,4 +470,4 @@ show_ascii_logo
 # printf " $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC\\n"
 
 # install_deps
-# install_zabbix 
+install_zabbix 
