@@ -29,7 +29,7 @@ ENV_DISTRO_VERSION_ID=$VERSION_ID
 readonly APPNAME="Greenlight"
 # Generate password for environment
 if [[ -f /tmp/app.cache ]]; then
-  # Check if there's an existing file and store the contents in a variable.
+  # Check if there's an existing file, store the contents in a variable if there is.
   readonly ENV_PASSWORD=$(cat /tmp/app.cache)
 else
   # Create a file,
@@ -50,7 +50,7 @@ fi
 
 # -e option instructs bash to print a trace of simple commands and their arguments
 # after they are expanded and before they are executed. -o xtrace
-# set -x
+set -x
 
 # Bash matches patterns in a case-insensitive fashion when performing matching
 # while executing case or [[ conditional commands.
@@ -115,11 +115,11 @@ unfinished_install () {
 
 # Run command as user
 run_as_user () {
-  if ! hash sudo 2>/dev/null; then
+  # if ! hash sudo 2>/dev/null; then
       su -c "$@" $APP_USER
-  else
-      sudo -i -u $APP_USER "$@"
-  fi
+  # else
+      # sudo -i -u $APP_USER "$@"
+  # fi
 }
 
 get_timezone () {
@@ -146,6 +146,77 @@ get_timezone () {
   fi
   return 1
 }
+
+database_secure () {
+  # Set the root mysql password and,
+  printf "  $BUSY Securing database... "
+  # secure the database. Based on the actions performed by the mysql_secure_installation command.
+  mysqladmin -u root password "$ENV_PASSWORD" > /dev/null 2>&1
+  mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')" > /dev/null 2>&1
+  mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User=''" > /dev/null 2>&1
+  mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%'" > /dev/null 2>&1
+  mysql -u root -p"$ENV_PASSWORD" -e "FLUSH PRIVILEGES" > /dev/null 2>&1
+  printf "done.\\n"
+}
+
+database_prepare () {
+  printf "  $BUSY Creating database... "
+  # Create the Zabbix database and user and grant privileges
+  mysql -u root -p"$ENV_PASSWORD" -e "CREATE USER 'zabbix'@localhost IDENTIFIED BY '$ENV_PASSWORD'" > /dev/null 2>&1
+  mysql -u root -p"$ENV_PASSWORD" -e "CREATE DATABASE zabbix character set utf8 collate utf8_bin" > /dev/null 2>&1
+  mysql -u root -p"$ENV_PASSWORD" -e "GRANT ALL PRIVILEGES ON zabbix.* TO zabbix@localhost" > /dev/null 2>&1
+  # Create the Snipe-IT database and user and grant privileges
+  mysql -u root -p"$ENV_PASSWORD" -e "CREATE USER 'snipeit'@localhost IDENTIFIED BY '$ENV_PASSWORD'" > /dev/null 2>&1
+  mysql -u root -p"$ENV_PASSWORD" -e "CREATE DATABASE snipeit character set utf8 collate utf8_bin" > /dev/null 2>&1
+  mysql -u root -p"$ENV_PASSWORD" -e "GRANT ALL PRIVILEGES ON snipeit.* TO snipeit@localhost" > /dev/null 2>&1
+  printf "done.\\n"
+}
+
+set_selinux () {
+  if [[ "$ENV_DISTRO" == "fedora" ]]; then
+    printf " $INFO SELinux\\n"
+    if [[ $(awk -F = -e '/^SELINUX=/ {print $2}' /etc/selinux/config) == "enforcing" ]]; then
+      printf "  $TICK SELinux is enabled, disabling... "
+      setenforce 0
+      sed -E -c -i 's/(^SELINUX*=)(.*)/\1disabled/' /etc/selinux/config
+      printf "done.\\n\\n"
+    else
+      printf "  $TICK SELinux already disabled.\\n\\n"
+    fi
+  fi
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # VARIABLES
 # Get some important information
@@ -185,8 +256,7 @@ get_env_var () {
 install_deps () {
 
   # Dependencies differ between distributions, define them here.
-  local packages_fedora='httpd php php-fpm php-mysqlnd php-ldap php-bcmath php-mbstring php-gd php-pdo php-xml mariadb mariadb-server mariadb-devel OpenIPMI-libs fping libssh2 net-snmp-libs unixODBC'
-  # TODO: Check to install PHP7.3 on 18.04 as SnipeIT requires it.
+  local packages_fedora='fping git httpd libssh2 mariadb mariadb-devel mariadb-server net-snmp-libs OpenIPMI-libs php php-bcmath php-cli php-common php-embedded php-fpm php-gd php-json php-ldap php-mbstring php-mcrypt php-mysqlnd php-pdo php-simplexml php-xml php-zip unixODBC unzip'
   local packages_ubuntu_18='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php7.4 libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient20 libodbc1 libopenipmi0 libsnmp-base libsnmp30 libssh-4 mysql-client mysql-client-5.7 mysql-client-core-5.7 mysql-common mysql-server php7.4 php7.4-bcmath php7.4-cli php7.4-common php7.4-curl php7.4-gd php7.4-json php7.4-ldap php7.4-mbstring php7.4-mysql php7.4-opcache php7.4-readline php7.4-xml php7.4-zip snmpd ssl-cert'
   local packages_ubuntu_20='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient21 libodbc1 libopenipmi0 libsnmp-base libsnmp35 libssh-4 mariadb-client mariadb-server php php-bcmath php-cli php-common php-gd php-json php-ldap php-mbstring php-mysql php-opcache php-readline php-xml snmpd ssl-cert'
 
@@ -277,29 +347,21 @@ install_deps () {
 install_zabbix () {
 # Recipe for Zabbix
 
-  get_timezone
   
   if [[ "$ENV_DISTRO" == "fedora" || "$ENV_DISTRO" == "ubuntu" ]]; then
 
     # let the user know we're ready
     printf " $INFO Ready to install Zabbix on $ENV_DISTRO_NAME $ENV_DISTRO_VERSION_FULL\\n\\n"
+    
+    # Get timezone data.
+      get_timezone
       
     # Temporary location to save install files
       local ENV_TMP_DIR="/tmp/zabbix"
 
     # Disable SELinux in Fedora
-      if [[ "$ENV_DISTRO" == "fedora" ]]; then
-        printf " $INFO SELinux\\n"
-        if [[ $(awk -F = -e '/^SELINUX=/ {print $2}' /etc/selinux/config) == "enforcing" ]]; then
-          printf "  $TICK SELinux is enabled, disabling... "
-          setenforce 0
-          sed -E -c -i 's/(^SELINUX*=)(.*)/\1disabled/' /etc/selinux/config
-          printf "done.\\n\\n"
-        else
-          printf "  $TICK SELinux already disabled.\\n\\n"
-        fi
-      fi
-    
+      set_selinux
+
     # Install packages
       printf " $INFO Checking dependencies...\\n"
       install_deps
@@ -308,7 +370,7 @@ install_zabbix () {
     printf \\n
 
     # Download and install Zabbix
-        printf " $INFO Downloading and installing Zabbix...\\n"
+      printf " $INFO Downloading and installing Zabbix...\\n"
       # for Fedora
       # TODO: Add comments here.
         if [[ "$ENV_DISTRO" == "fedora" ]]; then
@@ -346,7 +408,7 @@ install_zabbix () {
           apt update -y > /dev/null 2>&1
           apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-agent > /dev/null 2>&1
           printf "done\\n"
-          # Set timezone in /etc/zabbix/apache.conf file.
+          # Set timezone information in /etc/zabbix/apache.conf file.
           printf "  $INFO Setting installation timezone to: $COLOUR_LIGHT_PURPLE$ENV_TIMEZONE$COLOUR_NC\\n"
           sed -E -i 's/(^.*)(# php_value date.timezone).*/\1php_value date.timezone '$(echo $ENV_TIMEZONE | sed 's/\//\\\//g')'/' /etc/zabbix/apache.conf
         fi
@@ -359,7 +421,7 @@ install_zabbix () {
       # for Fedora
         if [[ "$ENV_DISTRO" == "fedora" ]]; then
           local services='httpd php-fpm mariadb zabbix-server zabbix-agent'
-          # Let's go through the list of services and enable them
+          # Let's go through the list of services and
           for service in $services; do
             printf "  $TICK Enabling $service... "
             # enable them one by one.
@@ -376,7 +438,7 @@ install_zabbix () {
       # for Ubuntu
         if [[ "$ENV_DISTRO" == "ubuntu" ]]; then
           local services='zabbix-server zabbix-agent apache2'
-          # Let's go through the list of services and enable them
+          # Let's go through the list of services and
           for service in $services; do
             printf "  $TICK Enabling $service... "
             # enable them one by one.
@@ -397,29 +459,26 @@ install_zabbix () {
     printf \\n
 
     # Prepare SQL database
+      # Secure the database,
       printf " $INFO Preparing database...\\n"
-      # Set the root mysql password and,
-      printf "  $BUSY Securing database... "
-      # secure the database. Based on the actions performed by the mysql_secure_installation command.
-      mysqladmin -u root password "$ENV_PASSWORD" > /dev/null 2>&1
-      mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')" > /dev/null 2>&1
-      mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User=''" > /dev/null 2>&1
-      mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%'" > /dev/null 2>&1
-      mysql -u root -p"$ENV_PASSWORD" -e "FLUSH PRIVILEGES" > /dev/null 2>&1
-      printf "done.\\n"
+        database_secure
+        # create users and grant privileges etc.
+        database_prepare
+        printf "  $TICK$F_BOLD Database password [keep it in a safe place]$F_END: $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC\\n"
+      printf "  $TICK Done preparing database.\\n"
+
+    # Give some space
+    printf \\n
     
-    # Database
-      printf "  $BUSY Creating database... "
-      # Create the Zabbix database and user and grant privileges
-      mysql -u root -p"$ENV_PASSWORD" -e "CREATE USER 'zabbix'@localhost IDENTIFIED BY '$ENV_PASSWORD'" > /dev/null 2>&1
-      mysql -u root -p"$ENV_PASSWORD" -e "CREATE DATABASE zabbix character set utf8 collate utf8_bin" > /dev/null 2>&1
-      mysql -u root -p"$ENV_PASSWORD" -e "GRANT ALL PRIVILEGES ON zabbix.* TO zabbix@localhost" > /dev/null 2>&1
+    # Configuring 
+      printf " $INFO Configuring ... \\n"
       # Add the database password to zabbix_server.conf file with some regex magic
-      sed -E -i 's/(^# DBPassword*=)/DBPassword='$ENV_PASSWORD'/' /etc/zabbix/zabbix_server.conf
-      printf "done.\\n"
+        printf "  $BUSY Checking conf file... "
+        sed -E -i 's/(^# DBPassword*=)/DBPassword='$ENV_PASSWORD'/' /etc/zabbix/zabbix_server.conf
+        printf "done.\\n"
 
       # Load Zabbix schema from file
-        printf "  $INFO Loading Zabbix DB schema (this might take a while)... "
+        printf "  $BUSY Loading Zabbix DB schema (this might take a while)... "
         # Check if the schema file exists,
         if [[ -f /usr/share/doc/zabbix-server-mysql/create.sql.gz ]]; then
           # and pipe the contents to mysql.
@@ -428,8 +487,8 @@ install_zabbix () {
         else
           printf "already loaded.\\n"
         fi
+      printf "  $TICK Configuration complete.\\n"
 
-      printf "  $TICK$F_BOLD Database password [keep it in a safe place]$F_END: $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC\\n"
 
     # Give some space
     printf \\n
@@ -450,8 +509,83 @@ install_zabbix () {
 }
 
 install_snipeit () {
+  if [[ "$ENV_DISTRO" == 'fedora' ]]; then
+    
+    set_selinux
+    get_timezone
+    local ENV_TMP_DIR="/tmp/snipe-it"
+    local ENV_INSTALL_DIR="/opt/snipe-it"
+    local APP_USER=snipeit
+
+    # install dependencies
+        # local packages_fedora='fping git httpd libssh2 mariadb mariadb-devel mariadb-server net-snmp-libs OpenIPMI-libs php php-bcmath php-cli php-common php-embedded php-fpm php-gd php-json php-ldap php-mbstring php-mcrypt php-mysqlnd php-pdo php-simplexml php-xml php-zip unixODBC unzip'
+        # install_deps
+        # dnf install -y $packages_fedora > /dev/null 2>&1
+    
+
+    echo -e $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC
+
+    # add user
+    # sudo adduser --home-dir /opt/snipe-it --password $ENV_PASSWORD snipeit
+    # adduser --home-dir /opt/snipe-it --password $ENV_PASSWORD snipeit
+    # printf "adduser --home-dir /opt/snipe-it --password $ENV_PASSWORD snipeit\\n"
+        # adduser --home-dir $ENV_INSTALL_DIR $APP_USER
+
+    # set directory permissions
+        # chmod 755 $ENV_INSTALL_DIR
+
+    # set user password
+        # yes $ENV_PASSWORD | passwd $APP_USER
+
+    # set user group
+        # usermod -aG wheel -aG apache $APP_USER
+
+    # git clone
+        # git clone https://github.com/snipe/snipe-it $ENV_TMP_DIR
+
+    # move files
+        # mv $ENV_TMP_DIR/* $ENV_INSTALL_DIR 
+
+    # change ownership
+        # chown -R $APP_USER:$APP_USER $ENV_INSTALL_DIR
+
+    # run as user
+
+      # cp .env.example .env
+      # run_as_user "wget -q -nc -O $ENV_INSTALL_DIR/.env https://raw.githubusercontent.com/snipe/snipe-it/master/.env.example"
+
+    # set config file options
+        sed -E -i "s/(^APP_TIMEZONE=)(.*)/\1'"$(echo $ENV_TIMEZONE | sed 's/\//\\\//g')"'/" $ENV_INSTALL_DIR/.env
+        sed -E -i "s/(^DB_DATABASE=)(.*)/\1$APP_USER/" $ENV_INSTALL_DIR/.env
+        sed -E -i "s/(^DB_USERNAME=)(.*)/\1$APP_USER/" $ENV_INSTALL_DIR/.env
+        sed -E -i "s/(^DB_PASSWORD=)(.*)/\1$ENV_PASSWORD/" $ENV_INSTALL_DIR/.env
+
+
+
+
+
+  fi
   return 0
   # TODO: Remove snipeit.sh and install.sh after git clone.
+}
+
+
+main () {
+  
+  # - GET TIMEZONE
+  # - SELINUX
+  # - (nope) SET TEMP DIR
+  # - INSTALL DEPS
+  # - INSTALL SOFTWARE (from recipes/functions)
+  # - START SERVICES
+  # - FIREWALL RULES
+  # - SECURE DATABASE
+  # - PREPARE DATABASE
+  # - CONFIGURATIONS
+  # - 
+
+  return 0
+
 }
 
 # RUN STUFF
@@ -470,4 +604,5 @@ show_ascii_logo
 # printf " $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC\\n"
 
 # install_deps
-install_zabbix 
+# install_zabbix 
+install_snipeit
