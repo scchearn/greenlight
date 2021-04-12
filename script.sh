@@ -5,7 +5,7 @@
 # TODO: Check how to work with coltable.
 # TODO: Build a mechanism to check lowest supported versions of OS.
 # TODO: Think about clean up
-# TODO: Need to add timezone information. Get from: cat /etc/timezone
+# TODO: Mail server, what to do?
 
 # =================================================
 #   DO THESE THINGS FIRST
@@ -18,13 +18,6 @@ if [[ "$(id -u)" != "0" ]]; then
   printf "$COLOUR_LIGHT_RED""Please execute his script as root or sudo\\n""$COLOUR_NC"
   exit 0
 fi
-# Get environment details, like the distribution
-source /etc/os-release
-# OS detection
-ENV_DISTRO=$ID
-ENV_DISTRO_NAME=$NAME
-ENV_DISTRO_VERSION_FULL=$VERSION
-ENV_DISTRO_VERSION_ID=$VERSION_ID
 # This is the name of the app.
 readonly APPNAME="Greenlight"
 # Generate password for environment
@@ -34,6 +27,7 @@ if [[ -f /tmp/app.cache ]]; then
 else
   # Create a file,
   touch /tmp/app.cache
+  touch /tmp/app.log
   # generate a random string to use a password and assign it to a variable.
   readonly ENV_PASSWORD=$(< /dev/urandom tr -dc 'a-zA-Z0-9' | head -c${1:-32};echo;)
   # Save that password to a file for temporary safeguarding and, 
@@ -41,6 +35,14 @@ else
   # set permissions so only the owner can read and write (600), which is root in this case.
   chmod 600 /tmp/app.cache
 fi
+# Get environment details, like the distribution
+source /etc/os-release
+# OS detection
+ENV_DISTRO=$ID
+ENV_DISTRO_NAME=$NAME
+ENV_DISTRO_VERSION_FULL=$VERSION
+ENV_DISTRO_VERSION_ID=$VERSION_ID
+APP_LOG="/tmp/app.log"
 
 # -e option instructs bash to exit immediately if a simple command exits with a non-zero
 # status, unless the command that fails is part of an until or while loop, part of an
@@ -50,7 +52,7 @@ fi
 
 # -e option instructs bash to print a trace of simple commands and their arguments
 # after they are expanded and before they are executed. -o xtrace
-set -x
+# set -x
 
 # Bash matches patterns in a case-insensitive fashion when performing matching
 # while executing case or [[ conditional commands.
@@ -122,6 +124,11 @@ run_as_user () {
   # fi
 }
 
+execute_and_log () {
+  eval "$@" | tee -a $APP_LOG
+}
+
+
 get_timezone () {
   local curlResult=$(curl 'https://ipapi.co/timezone' 2>&1;printf \\n$?)
   local curlExitCode="${curlResult##*$'\n'}"
@@ -148,27 +155,25 @@ get_timezone () {
 }
 
 database_secure () {
+  # -q, --quiet     Quiet (no output)
+  if ! [[ "$@" =~ "-q" ||  "$@" =~ "--quiet" ]]; then printf "  $BUSY Securing database... "; fi
   # Set the root mysql password and,
-  printf "  $BUSY Securing database... "
-  # secure the database. Based on the actions performed by the mysql_secure_installation command.
   mysqladmin -u root password "$ENV_PASSWORD" > /dev/null 2>&1
+  # secure the database. Based on the actions performed by the mysql_secure_installation command.
   mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')" > /dev/null 2>&1
   mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User=''" > /dev/null 2>&1
   mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%'" > /dev/null 2>&1
   mysql -u root -p"$ENV_PASSWORD" -e "FLUSH PRIVILEGES" > /dev/null 2>&1
-  printf "done.\\n"
+  if ! [[ "$@" =~ "-q" || "$@" =~ "--quiet" ]]; then printf "done.\\n"; fi
 }
 
 database_prepare () {
+  local APP_DBNAME=${APP_USER}
   printf "  $BUSY Creating database... "
-  # Create the Zabbix database and user and grant privileges
-  mysql -u root -p"$ENV_PASSWORD" -e "CREATE USER 'zabbix'@localhost IDENTIFIED BY '$ENV_PASSWORD'" > /dev/null 2>&1
-  mysql -u root -p"$ENV_PASSWORD" -e "CREATE DATABASE zabbix character set utf8 collate utf8_bin" > /dev/null 2>&1
-  mysql -u root -p"$ENV_PASSWORD" -e "GRANT ALL PRIVILEGES ON zabbix.* TO zabbix@localhost" > /dev/null 2>&1
-  # Create the Snipe-IT database and user and grant privileges
-  mysql -u root -p"$ENV_PASSWORD" -e "CREATE USER 'snipeit'@localhost IDENTIFIED BY '$ENV_PASSWORD'" > /dev/null 2>&1
-  mysql -u root -p"$ENV_PASSWORD" -e "CREATE DATABASE snipeit character set utf8 collate utf8_bin" > /dev/null 2>&1
-  mysql -u root -p"$ENV_PASSWORD" -e "GRANT ALL PRIVILEGES ON snipeit.* TO snipeit@localhost" > /dev/null 2>&1
+  # Create databases, users and grant privileges
+  mysql -u root -p"$ENV_PASSWORD" -e "CREATE USER '$APP_USER'@localhost IDENTIFIED BY '$ENV_PASSWORD'" > /dev/null 2>&1
+  mysql -u root -p"$ENV_PASSWORD" -e "CREATE DATABASE $APP_DBNAME character set utf8 collate utf8_bin" > /dev/null 2>&1
+  mysql -u root -p"$ENV_PASSWORD" -e "GRANT ALL PRIVILEGES ON $APP_DBNAME.* TO $APP_USER@localhost" > /dev/null 2>&1
   printf "done.\\n"
 }
 
@@ -186,37 +191,55 @@ set_selinux () {
   fi
 }
 
+start_services () {
+# for Fedora
+  if [[ "$ENV_DISTRO" == "fedora" ]]; then
+    local services='httpd php-fpm mariadb zabbix-server zabbix-agent'
+    # local services='httpd php-fpm mariadb'
+    # Let's go through the list of services and
+    for service in $services; do
+      printf "  $TICK Enabling $service... "
+      # enable them one by one.
+      systemctl enable --now $service > /dev/null 2>&1
+      printf "done.\\n"
+      # TODO: No error handling here
+    done
+  fi
+# for Ubuntu
+  if [[ "$ENV_DISTRO" == "ubuntu" ]]; then
+    local services='apache2 zabbix-server zabbix-agent'
+    # Let's go through the list of services and
+    for service in $services; do
+      printf "  $TICK Enabling $service... "
+      # enable them one by one.
+      systemctl enable --now $service > /dev/null 2>&1
+      printf "done.\\n"
+      # TODO: No error handling here
+    done
+  fi
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+firewall_config () {
+  case $ENV_DISTRO in
+    'fedora')
+      printf "  $TICK Adding firewall rules... "
+      # Add firewall rules to open the necessary ports.
+      firewall-cmd --permanent --add-service=http --add-service=https > /dev/null 2>&1
+      firewall-cmd --permanent --add-port=10050-10051/tcp > /dev/null 2>&1
+      systemctl restart firewalld
+      printf "done.\\n"
+      ;;
+    'ubuntu')
+      printf "  $TICK Adding firewall rules... "
+      # Add firewall rules to open the necessary ports.
+      ufw allow 80/tcp > /dev/null 2>&1
+      ufw allow 443/tcp > /dev/null 2>&1
+      ufw allow 10050/tcp > /dev/null 2>&1
+      ufw allow 10051/tcp > /dev/null 2>&1
+      printf "done.\\n"
+      ;;
+  esac
+}
 
 # VARIABLES
 # Get some important information
@@ -227,10 +250,10 @@ get_org_var () {
   printf "\\nPlease check that all the information below is correct:\\n"
   printf " $CHECK Domain name: $COLOUR_LIGHT_GREEN$ORG_DOMAIN$COLOUR_NC\\n"
   printf " $CHECK Administrator email: $COLOUR_LIGHT_GREEN$ORG_ADMIN_EMAIL$COLOUR_NC\\n"
-  read -e -p "Is this information correct? [y/n] " RESPONSE
+  read -e -p "Is this information correct? [y/n] " reponse
   
   # Give the user a chance to check if the data is correct
-  if [[ "$RESPONSE" != [yY] ]]; then
+  if [[ "$reponse" != [yY] ]]; then
     # if not, ask again
     get_org_var
   else
@@ -272,27 +295,28 @@ install_deps () {
     # Loop through the list above and install each package
     for p in $packages; do
       printf "  $BUSY Installing $COLOUR_LIGHT_GREEN$p$COLOUR_NC... "
-      # Run the command in a subshell and save the results to a variable,
-      local execute=$(dnf install -y $p 2>&1)
-      # then check the output for information. 
-      if [[ $execute =~ "no match for argument" ]]; then
-        # Package not available
-        printf "can't find "$COLOUR_LIGHT_RED$p$COLOUR_NC".\\n"
-      elif [[ $execute =~ "already installed" ]]; then
-        # Package already installed
+      # Check if the package isn't already installed.
+      if dnf list installed "$p" > /dev/null 2>&1; then
         printf "already installed.\\n"
-      elif [[ $execute =~ "complete" ]]; then
-        # Installed!
-        printf "done.\\n"
-      # Any errors will go here.
       else
-        printf " $ERROR Yikes, something broke. Better investigate.\\n$COLOUR_LIGHT_YELLOW$execute$COLOUR_NC\\n\\n"
+        # If not, run the dnf install command in a subshell and save the results to a variable,
+        local execute=$(dnf install -y $p 2>&1)
+        # then check the output for information. 
+        if [[ $execute =~ "no match for argument" ]]; then
+          # Package not available
+          printf "can't find "$COLOUR_LIGHT_RED$p$COLOUR_NC".\\n"
+        elif [[ $execute =~ "complete" ]]; then
+          # Installed!
+          printf "done.\\n"
+        # Any errors will go here.
+        else
+          printf " $ERROR Yikes, something broke. Better investigate.\\n$COLOUR_LIGHT_YELLOW$execute$COLOUR_NC\\n\\n"
+        fi
       fi
     done
   
   # Ubuntu Install
   elif [[ "$ENV_DISTRO" == "ubuntu" ]]; then
-    # List of packages
     # We have to check our OS version, packages are different and some needs extra repositories.
     if [[ "$ENV_DISTRO_VERSION_ID" == "20.04" ]]; then
       local packages=${packages_ubuntu_20}
@@ -315,23 +339,25 @@ install_deps () {
       else
         printf " $INFO Dependencies download size: $download_size\\n"
         # Loop through the list above and install each package
+        
         for p in $packages; do
           printf "  $BUSY Installing $COLOUR_LIGHT_GREEN$p$COLOUR_NC... "
           # Run the command in a subshell and save the results to a variable,
-          local execute=$(apt install -y $p 2>&1)
-          # then check the output for information. 
-            # Package not available
-          if [[ $execute =~ "unable to locate package" ]]; then
-            printf "can't find "$COLOUR_LIGHT_RED$p$COLOUR_NC".\\n"
-            # Package already installed
-          elif [[ $execute =~ "already the newest version" ]]; then
+          if dpkg -s "$p" > /dev/null 2>&1; then
             printf "already installed.\\n"
-            # Installed!
-          elif [[ $execute =~ "newly installed" ]]; then
-            printf "done.\\n"
-          # Any errors will go here.
           else
-            printf " $ERROR Yikes, something broke. Better investigate.\\n$COLOUR_LIGHT_YELLOW$execute$COLOUR_NC\\n\\n"
+            local execute=$(apt install -y $p 2>&1)
+            # then check the output for information. 
+              # Package not available
+            if [[ $execute =~ "unable to locate package" ]]; then
+              printf "can't find "$COLOUR_LIGHT_RED$p$COLOUR_NC".\\n"
+              # Installed!
+            elif [[ $execute =~ "newly installed" ]]; then
+              printf "done.\\n"
+            # Any errors will go here.
+            else
+              printf " $ERROR Yikes, something broke. Better investigate.\\n$COLOUR_LIGHT_YELLOW$execute$COLOUR_NC\\n\\n"
+            fi
           fi
         done
       fi
@@ -358,6 +384,7 @@ install_zabbix () {
       
     # Temporary location to save install files
       local ENV_TMP_DIR="/tmp/zabbix"
+      local APP_USER="zabbix"
 
     # Disable SELinux in Fedora
       set_selinux
@@ -418,43 +445,9 @@ install_zabbix () {
 
     # Enable and start services
       printf " $INFO Starting services...\\n"
-      # for Fedora
-        if [[ "$ENV_DISTRO" == "fedora" ]]; then
-          local services='httpd php-fpm mariadb zabbix-server zabbix-agent'
-          # Let's go through the list of services and
-          for service in $services; do
-            printf "  $TICK Enabling $service... "
-            # enable them one by one.
-            systemctl enable --now $service > /dev/null 2>&1
-            printf "done.\\n"
-            # TODO: No error handling here
-          done
-          printf "  $TICK Adding firewall rules... "
-          # Add firewall rules to open the necessary ports.
-          firewall-cmd --permanent --add-service=http --add-service=https > /dev/null 2>&1
-          firewall-cmd --permanent --add-port=10050-10051/tcp > /dev/null 2>&1
-          printf "done.\\n"
-        fi
-      # for Ubuntu
-        if [[ "$ENV_DISTRO" == "ubuntu" ]]; then
-          local services='zabbix-server zabbix-agent apache2'
-          # Let's go through the list of services and
-          for service in $services; do
-            printf "  $TICK Enabling $service... "
-            # enable them one by one.
-            systemctl enable --now $service > /dev/null 2>&1
-            printf "done.\\n"
-            # TODO: No error handling here
-          done
-          printf "  $TICK Adding firewall rules... "
-          # Add firewall rules to open the necessary ports.
-          ufw allow 80/tcp > /dev/null 2>&1
-          ufw allow 443/tcp > /dev/null 2>&1
-          ufw allow 10050/tcp > /dev/null 2>&1
-          ufw allow 10051/tcp > /dev/null 2>&1
-          printf "done.\\n"
-        fi
-    
+      start_services
+      firewall_config
+
     # Give some space
     printf \\n
 
@@ -494,11 +487,11 @@ install_zabbix () {
     printf \\n
 
     # Reload all services, yikes!
-    # TODO: Check if init 1; init 3 really is the best way to do this.
-      printf " Initialising... "
-      init 1; init 3
+    # TODO: !! This is only relevant to Fedora (so far). Reload firewalld service on Fedora.
+      # printf " Initialising... "
+      # init 1; init 3
       # init 3
-      printf "done, thank you.\\n\\n"
+      # printf "done, thank you.\\n\\n"
     
     # Clean up
       rm -R $ENV_TMP_DIR
@@ -508,61 +501,139 @@ install_zabbix () {
 
 }
 
+# #######################################
+#   WORK IN PROGRESS
+# #######################################
+
 install_snipeit () {
-  if [[ "$ENV_DISTRO" == 'fedora' ]]; then
+  # Snipe-IT recipe
     
+  create_vhost () {
+    {
+      echo "<VirtualHost *:80>"
+      echo ""
+      echo "  Alias /snipe-it $APP_INSTALL_DIR/public"
+      echo ""
+      echo "  <Directory $APP_INSTALL_DIR/public>"
+      echo "      Allow From All"
+      echo "      AllowOverride All"
+      echo "      Options -Indexes"
+      echo "  </Directory>"
+      echo ""
+      echo "  DocumentRoot $APP_INSTALL_DIR/public"
+      echo "  ServerName $(hostname --fqdn)"
+      echo ""
+      echo "</VirtualHost>"
+    } >> $APACHE_CONF_LOCATION/$APP_USER.conf
+  }
+
+  create_htaccess () {
+    {
+      echo "<IfModule mod_rewrite.c>"
+      echo "    <IfModule mod_negotiation.c>"
+      echo "        Options -MultiViews"
+      echo "    </IfModule>"
+      echo ""
+      echo "    RewriteEngine On"
+      echo "    RewriteBase /snipe-it"
+      echo ""
+      echo "    # Make sure .env files not not browseable if in a sub-directory."
+      echo "    <FilesMatch \"\\.env$\">"
+      echo "      # Apache 2.2"
+      echo "        <IfModule !authz_core_module>"
+      echo "            Deny from all"
+      echo "        </IfModule>"
+      echo ""
+      echo "      # Apache 2.4+"
+      echo "        <IfModule authz_core_module>"
+      echo "            Require all denied"
+      echo "        </IfModule>"
+      echo "    </FilesMatch>"
+      echo ""
+      echo "</IfModule>"
+    } > $APP_INSTALL_DIR/.htaccess
+    # TODO: !! probably change file ownership here
+  }
+
+  if [[ "$ENV_DISTRO" == 'fedora' ]]; then
+
     set_selinux
     get_timezone
-    local ENV_TMP_DIR="/tmp/snipe-it"
-    local ENV_INSTALL_DIR="/opt/snipe-it"
-    local APP_USER=snipeit
+    local APP_TMP_DIR="/tmp/snipe-it"
+    local APP_INSTALL_DIR="/opt/snipe-it"
+    local APP_USER="snipeit"
+    local APACHE_USER="apache"
+    local APACHE_CONF_LOCATION="/etc/httpd/conf.d"
 
     # install dependencies
-        # local packages_fedora='fping git httpd libssh2 mariadb mariadb-devel mariadb-server net-snmp-libs OpenIPMI-libs php php-bcmath php-cli php-common php-embedded php-fpm php-gd php-json php-ldap php-mbstring php-mcrypt php-mysqlnd php-pdo php-simplexml php-xml php-zip unixODBC unzip'
+        local packages_fedora='fping git httpd libssh2 mariadb mariadb-devel mariadb-server net-snmp-libs OpenIPMI-libs php php-bcmath php-cli php-common php-embedded php-fpm php-gd php-json php-ldap php-mbstring php-mcrypt php-mysqlnd php-pdo php-simplexml php-xml php-zip unixODBC unzip'
         # install_deps
-        # dnf install -y $packages_fedora > /dev/null 2>&1
+        dnf install -y $packages_fedora > /dev/null 2>&1
     
+    start_services
+    database_secure
+    database_prepare
 
     echo -e $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC
 
     # add user
-    # sudo adduser --home-dir /opt/snipe-it --password $ENV_PASSWORD snipeit
-    # adduser --home-dir /opt/snipe-it --password $ENV_PASSWORD snipeit
-    # printf "adduser --home-dir /opt/snipe-it --password $ENV_PASSWORD snipeit\\n"
-        # adduser --home-dir $ENV_INSTALL_DIR $APP_USER
+        adduser --home-dir $APP_INSTALL_DIR $APP_USER
 
     # set directory permissions
-        # chmod 755 $ENV_INSTALL_DIR
+        chmod 755 $APP_INSTALL_DIR
 
     # set user password
-        # yes $ENV_PASSWORD | passwd $APP_USER
+        yes $ENV_PASSWORD | passwd $APP_USER
 
     # set user group
-        # usermod -aG wheel -aG apache $APP_USER
+        usermod -aG wheel -aG $APACHE_USER $APP_USER
 
     # git clone
-        # git clone https://github.com/snipe/snipe-it $ENV_TMP_DIR
+        git clone https://github.com/snipe/snipe-it $APP_TMP_DIR
 
     # move files
-        # mv $ENV_TMP_DIR/* $ENV_INSTALL_DIR 
-
+        # Set shell option 'dotglod' to enable moving hidden (dot files) files.
+        shopt -s dotglob
+        mv $APP_TMP_DIR/* $APP_INSTALL_DIR 
+        shopt -u dotglob
+        rm $APP_INSTALL_DIR/{install,snipeit}.sh
     # change ownership
-        # chown -R $APP_USER:$APP_USER $ENV_INSTALL_DIR
+        chown -R $APP_USER:$APP_USER $APP_INSTALL_DIR
 
     # run as user
 
       # cp .env.example .env
-      # run_as_user "wget -q -nc -O $ENV_INSTALL_DIR/.env https://raw.githubusercontent.com/snipe/snipe-it/master/.env.example"
+        run_as_user "cd ~/; cp .env.example .env"
 
     # set config file options
-        sed -E -i "s/(^APP_TIMEZONE=)(.*)/\1'"$(echo $ENV_TIMEZONE | sed 's/\//\\\//g')"'/" $ENV_INSTALL_DIR/.env
-        sed -E -i "s/(^DB_DATABASE=)(.*)/\1$APP_USER/" $ENV_INSTALL_DIR/.env
-        sed -E -i "s/(^DB_USERNAME=)(.*)/\1$APP_USER/" $ENV_INSTALL_DIR/.env
-        sed -E -i "s/(^DB_PASSWORD=)(.*)/\1$ENV_PASSWORD/" $ENV_INSTALL_DIR/.env
+        sed -E -i "s/(^APP_TIMEZONE=)(.*)/\1'"$(echo $ENV_TIMEZONE | sed 's/\//\\\//g')"'/" $APP_INSTALL_DIR/.env
+        sed -E -i "s/(^DB_DATABASE=)(.*)/\1$APP_USER/" $APP_INSTALL_DIR/.env
+        sed -E -i "s/(^DB_USERNAME=)(.*)/\1$APP_USER/" $APP_INSTALL_DIR/.env
+        sed -E -i "s/(^DB_PASSWORD=)(.*)/\1$ENV_PASSWORD/" $APP_INSTALL_DIR/.env
 
+    # get php composer
+        run_as_user "cd ~/; curl -sS https://getcomposer.org/installer | php"
+        run_as_user "cd ~/; php composer.phar install --no-dev --prefer-source"
 
+    # generate APP_KEY
+        run_as_user "cd ~/; yes y | php artisan key:generate"
 
+    # migrate
+        run_as_user "cd ~/; yes y | php artisan migrate"
+    
+    # change ownership
+        chmod -R 775 $APP_INSTALL_DIR/storage
+        chmod -R 775 $APP_INSTALL_DIR/public/uploads
+        chown -R $APACHE_USER $APP_INSTALL_DIR/{storage,vendor,public}
+        
+    # create apache.conf file
+        create_vhost
 
+    # edit .htaccess
+        create_htaccess
+
+    # 
+        systemctl restart httpd
 
   fi
   return 0
@@ -589,20 +660,7 @@ main () {
 }
 
 # RUN STUFF
-# show_ascii_big
-show_ascii_logo
-# show_ascii_sml
-# distro_check
-# get_org_var
+# show_ascii_logo
 
-# printf " Checking that VARS are still available outside:\\n"
-# printf "  $F_BOLD$ORG_DOMAIN$F_END :: $F_ITAL$ORG_ADMIN_EMAIL$F_END\\n"
-
-# get_env_var
-
-# printf "Use this password across the installation\\n"
-# printf " $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC\\n"
-
-# install_deps
 # install_zabbix 
-install_snipeit
+# install_snipeit
