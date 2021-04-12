@@ -192,27 +192,35 @@ set_selinux () {
 }
 
 start_services () {
+  # -r, --restart    Restarts services
+  # 
+  
 # for Fedora
   if [[ "$ENV_DISTRO" == "fedora" ]]; then
+    # TODO: ?? These services needs to be moved outside of the function.
     local services='httpd php-fpm mariadb zabbix-server zabbix-agent'
     # local services='httpd php-fpm mariadb'
     # Let's go through the list of services and
     for service in $services; do
-      printf "  $TICK Enabling $service... "
+      if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then printf "  $TICK Enabling $service... ";else printf "  $TICK Reloading $service... ";fi
       # enable them one by one.
-      systemctl enable --now $service > /dev/null 2>&1
+      if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then systemctl restart $service > /dev/null 2>&1;else systemctl enable --now $service > /dev/null 2>&1;fi
+      # systemctl enable --now $service > /dev/null 2>&1
       printf "done.\\n"
       # TODO: No error handling here
     done
   fi
 # for Ubuntu
   if [[ "$ENV_DISTRO" == "ubuntu" ]]; then
+    # TODO: ?? These services needs to be moved outside of the function.
     local services='apache2 zabbix-server zabbix-agent'
     # Let's go through the list of services and
     for service in $services; do
-      printf "  $TICK Enabling $service... "
+      # printf "  $TICK Enabling $service... "
+      if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then printf "  $TICK Enabling $service... ";else printf "  $TICK Reloading $service... ";fi
       # enable them one by one.
-      systemctl enable --now $service > /dev/null 2>&1
+      if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then systemctl restart $service > /dev/null 2>&1;else systemctl enable --now $service > /dev/null 2>&1;fi
+      # systemctl enable --now $service > /dev/null 2>&1
       printf "done.\\n"
       # TODO: No error handling here
     done
@@ -486,15 +494,19 @@ install_zabbix () {
     # Give some space
     printf \\n
 
+    # TODO: !! Create a function to reload all relevant services.
     # Reload all services, yikes!
-    # TODO: !! This is only relevant to Fedora (so far). Reload firewalld service on Fedora.
-      # printf " Initialising... "
       # init 1; init 3
+      # TODO: !! This is only relevant to Fedora (so far). Reload firewalld service on Fedora.
       # init 3
       # printf "done, thank you.\\n\\n"
     
+      printf " Initialising... "
+      start_services --restart
+
     # Clean up
       rm -R $ENV_TMP_DIR
+
   else
     printf "Nothing to do\\n"
   fi
@@ -662,5 +674,5 @@ main () {
 # RUN STUFF
 # show_ascii_logo
 
-# install_zabbix 
+install_zabbix 
 # install_snipeit
