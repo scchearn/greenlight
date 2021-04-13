@@ -18,31 +18,35 @@ if [[ "$(id -u)" != "0" ]]; then
   printf "$COLOUR_LIGHT_RED""Please execute his script as root or sudo\\n""$COLOUR_NC"
   exit 0
 fi
-# This is the name of the app.
-readonly APPNAME="Greenlight"
+# This is the name of the app, set it as a variable.
+readonly APPNAME="greenlight"
+# Make a directory for files to go.
+if ! [[ -d /tmp/$APPNAME ]]; then
+  mkdir /tmp/$APPNAME
+fi
 # Generate password for environment
-if [[ -f /tmp/app.cache ]]; then
+if [[ -f /tmp/$APPNAME/app.cache ]]; then
   # Check if there's an existing file, store the contents in a variable if there is.
-  readonly ENV_PASSWORD=$(cat /tmp/app.cache)
+  readonly ENV_PASSWORD=$(cat /tmp/$APPNAME/app.cache)
 else
-  # Create a file,
-  touch /tmp/app.cache
-  touch /tmp/app.log
-  # generate a random string to use a password and assign it to a variable.
+  # Create temporary files.
+  touch /tmp/$APPNAME/app.cache
+  touch /tmp/$APPNAME/app.log
+  # Generate a random string to use as a password and assign it to a variable.
   readonly ENV_PASSWORD=$(< /dev/urandom tr -dc 'a-zA-Z0-9' | head -c${1:-32};echo;)
   # Save that password to a file for temporary safeguarding and, 
-  echo $ENV_PASSWORD >> /tmp/app.cache
-  # set permissions so only the owner can read and write (600), which is root in this case.
-  chmod 600 /tmp/app.cache
+  echo $ENV_PASSWORD >> /tmp/$APPNAME/app.cache
+  # set permissions so only the owner can read and write (600) to it, which is root in this case.
+  chmod 600 /tmp/$APPNAME/app.cache
 fi
 # Get environment details, like the distribution
 source /etc/os-release
 # OS detection
-ENV_DISTRO=$ID
-ENV_DISTRO_NAME=$NAME
-ENV_DISTRO_VERSION_FULL=$VERSION
-ENV_DISTRO_VERSION_ID=$VERSION_ID
-APP_LOG="/tmp/app.log"
+readonly ENV_DISTRO=$ID
+readonly ENV_DISTRO_NAME=$NAME
+readonly ENV_DISTRO_VERSION_FULL=$VERSION
+readonly ENV_DISTRO_VERSION_ID=$VERSION_ID
+readonly APP_LOG="/tmp/$APPNAME/app.log"
 
 # -e option instructs bash to exit immediately if a simple command exits with a non-zero
 # status, unless the command that fails is part of an until or while loop, part of an
@@ -98,18 +102,18 @@ F_CR='\\r'
 #   FUNCTIONS
 # =================================================
 
-unfinished_install () {
 # Check for aborted or failed installations
+unfinished_install () {
 # TODO: Tell the user how to restore an unfinished install
-  if [[ $@ == "lock" && -f !/tmp/app.lock ]]; then
-    # touch /tmp/app.lock
+  if [[ $@ == "lock" && -f !/tmp/$APPNAME/app.lock ]]; then
+    # touch /tmp/$APPNAME/app.lock
     # return 0
     echo "Locking with file not present"
-  elif [[ $@ == "unlock" && -f /tmp/app.lock ]]; then
-    # rm /tmp/app.lock
+  elif [[ $@ == "unlock" && -f /tmp/$APPNAME/app.lock ]]; then
+    # rm /tmp/$APPNAME/app.lock
     # return 0
     echo "Unlocking, file present"
-  else [[ -f /tmp/app.lock ]]
+  else [[ -f /tmp/$APPNAME/app.lock ]]
     printf "%b" \\n "$ERROR" "$COLOUR_LIGHT_YELLOW" " Unfinished install found." "$COLOUR_NC" \\n\\n
     # exit 0
   fi
@@ -124,11 +128,14 @@ run_as_user () {
   # fi
 }
 
+# WRITE STUFF HERE
+# #########################################################
 execute_and_log () {
   eval "$@" | tee -a $APP_LOG
 }
 
-
+# WRITE STUFF HERE
+# #########################################################
 get_timezone () {
   local curlResult=$(curl 'https://ipapi.co/timezone' 2>&1;printf \\n$?)
   local curlExitCode="${curlResult##*$'\n'}"
@@ -154,6 +161,8 @@ get_timezone () {
   return 1
 }
 
+# WRITE STUFF HERE
+# #########################################################
 database_secure () {
   # -q, --quiet     Quiet (no output)
   if ! [[ "$@" =~ "-q" ||  "$@" =~ "--quiet" ]]; then printf "  $BUSY Securing database... "; fi
@@ -167,6 +176,8 @@ database_secure () {
   if ! [[ "$@" =~ "-q" || "$@" =~ "--quiet" ]]; then printf "done.\\n"; fi
 }
 
+# WRITE STUFF HERE
+# #########################################################
 database_prepare () {
   local APP_DBNAME=${APP_USER}
   printf "  $BUSY Creating database... "
@@ -177,6 +188,8 @@ database_prepare () {
   printf "done.\\n"
 }
 
+# WRITE STUFF HERE
+# #########################################################
 set_selinux () {
   if [[ "$ENV_DISTRO" == "fedora" ]]; then
     printf " $INFO SELinux\\n"
@@ -191,6 +204,8 @@ set_selinux () {
   fi
 }
 
+# WRITE STUFF HERE
+# #########################################################
 start_services () {
   # -r, --restart    Restarts services
   # 
@@ -198,16 +213,22 @@ start_services () {
 # for Fedora
   if [[ "$ENV_DISTRO" == "fedora" ]]; then
     # TODO: ?? These services needs to be moved outside of the function.
-    local services='httpd php-fpm mariadb zabbix-server zabbix-agent'
-    # local services='httpd php-fpm mariadb'
+    # local services='httpd php-fpm mariadb zabbix-server zabbix-agent'
+    local services='httpd php-fpm mariadb'
     # Let's go through the list of services and
     for service in $services; do
-      if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then printf "  $TICK Enabling $service... ";else printf "  $TICK Reloading $service... ";fi
+      if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then printf "  $TICK Enabling $service..."; else printf "  $TICK Reloading $service..."; fi
       # enable them one by one.
-      if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then systemctl restart $service > /dev/null 2>&1;else systemctl enable --now $service > /dev/null 2>&1;fi
-      # systemctl enable --now $service > /dev/null 2>&1
-      printf "done.\\n"
-      # TODO: No error handling here
+      if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then
+        systemctl enable --now $service > /dev/null 2>&1
+      else
+        systemctl restart $service > /dev/null 2>&1
+      fi
+        if [[ $? -eq 0 ]]; then
+          echo -e " done."
+        else
+          echo -e "$COLOUR_LIGHT_RED failed.$COLOUR_NC"
+        fi
     done
   fi
 # for Ubuntu
@@ -217,16 +238,22 @@ start_services () {
     # Let's go through the list of services and
     for service in $services; do
       # printf "  $TICK Enabling $service... "
-      if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then printf "  $TICK Enabling $service... ";else printf "  $TICK Reloading $service... ";fi
-      # enable them one by one.
-      if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then systemctl restart $service > /dev/null 2>&1;else systemctl enable --now $service > /dev/null 2>&1;fi
-      # systemctl enable --now $service > /dev/null 2>&1
-      printf "done.\\n"
-      # TODO: No error handling here
+      if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then
+        systemctl restart $service > /dev/null 2>&1
+      else
+        systemctl enable --now $service > /dev/null 2>&1
+      fi
+        if [[ $? -eq 0 ]]; then
+          echo -e " done."
+        else
+          echo -e "$COLOUR_LIGHT_RED failed.$COLOUR_NC"
+        fi
     done
   fi
 }
 
+# WRITE STUFF HERE
+# #########################################################
 firewall_config () {
   case $ENV_DISTRO in
     'fedora')
@@ -378,9 +405,8 @@ install_deps () {
 
 }
 
+# Recipe for installing Zabbix
 install_zabbix () {
-# Recipe for Zabbix
-
   
   if [[ "$ENV_DISTRO" == "fedora" || "$ENV_DISTRO" == "ubuntu" ]]; then
 
@@ -391,7 +417,7 @@ install_zabbix () {
       get_timezone
       
     # Temporary location to save install files
-      local ENV_TMP_DIR="/tmp/zabbix"
+      local ENV_TMP_DIR="/tmp/$APPNAME/zabbix"
       local APP_USER="zabbix"
 
     # Disable SELinux in Fedora
@@ -433,7 +459,7 @@ install_zabbix () {
           printf "done.\\n"
 
           printf "  $BUSY Installing... "
-          local filename=$(ls /tmp/zabbix/zabbix-*)
+          local filename=$(ls /tmp/$APPNAME/zabbix/zabbix-*)
           local dpkgResult=$(dpkg -i $filename 2>&1; echo $?)
           local dpkgExitCode="${dpkgResult##*$'\n'}"
             if [[ $dpkgExitCode != 0 ]]; then
@@ -462,7 +488,7 @@ install_zabbix () {
     # Prepare SQL database
       # Secure the database,
       printf " $INFO Preparing database...\\n"
-        database_secure
+        database_secure # TODO: !! Run this only once. 
         # create users and grant privileges etc.
         database_prepare
         printf "  $TICK$F_BOLD Database password [keep it in a safe place]$F_END: $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC\\n"
@@ -517,153 +543,253 @@ install_zabbix () {
 #   WORK IN PROGRESS
 # #######################################
 
+# Snipe-IT recipe
 install_snipeit () {
-  # Snipe-IT recipe
-    
-  create_vhost () {
-    {
-      echo "<VirtualHost *:80>"
-      echo ""
-      echo "  Alias /snipe-it $APP_INSTALL_DIR/public"
-      echo ""
-      echo "  <Directory $APP_INSTALL_DIR/public>"
-      echo "      Allow From All"
-      echo "      AllowOverride All"
-      echo "      Options -Indexes"
-      echo "  </Directory>"
-      echo ""
-      echo "  DocumentRoot $APP_INSTALL_DIR/public"
-      echo "  ServerName $(hostname --fqdn)"
-      echo ""
-      echo "</VirtualHost>"
-    } >> $APACHE_CONF_LOCATION/$APP_USER.conf
-  }
+  
+  if [[ "$ENV_DISTRO" == "fedora" || "$ENV_DISTRO" == "ubuntu" ]]; then
 
-  create_htaccess () {
-    {
-      echo "<IfModule mod_rewrite.c>"
-      echo "    <IfModule mod_negotiation.c>"
-      echo "        Options -MultiViews"
-      echo "    </IfModule>"
-      echo ""
-      echo "    RewriteEngine On"
-      echo "    RewriteBase /snipe-it"
-      echo ""
-      echo "    # Make sure .env files not not browseable if in a sub-directory."
-      echo "    <FilesMatch \"\\.env$\">"
-      echo "      # Apache 2.2"
-      echo "        <IfModule !authz_core_module>"
-      echo "            Deny from all"
-      echo "        </IfModule>"
-      echo ""
-      echo "      # Apache 2.4+"
-      echo "        <IfModule authz_core_module>"
-      echo "            Require all denied"
-      echo "        </IfModule>"
-      echo "    </FilesMatch>"
-      echo ""
-      echo "</IfModule>"
-    } > $APP_INSTALL_DIR/.htaccess
-    # TODO: !! probably change file ownership here
-  }
+    create_vhost () {
+      {
+        echo "<VirtualHost *:80>"
+        echo ""
+        echo "  Alias /snipe-it $APP_INSTALL_DIR/public"
+        echo ""
+        echo "  <Directory $APP_INSTALL_DIR/public>"
+        echo "      Allow From All"
+        echo "      AllowOverride All"
+        echo "      Require all granted"
+        echo "      Options -Indexes"
+        echo "  </Directory>"
+        echo ""
+        echo "  DocumentRoot $APP_INSTALL_DIR/public"
+        echo "  ServerName $(hostname --fqdn)"
+        echo ""
+        echo "</VirtualHost>"
+      } >> $APACHE_CONF_LOCATION/$APP_USER.conf
+    }
 
-  if [[ "$ENV_DISTRO" == 'fedora' ]]; then
+    create_htaccess () {
+      {
+        echo '<IfModule mod_rewrite.c>'
+        echo '    <IfModule mod_negotiation.c>'
+        echo '        Options -MultiViews'
+        echo '    </IfModule>'
+        echo ''
+        echo '    RewriteEngine On'
+        echo '    RewriteBase /snipe-it'
+        echo ''
+        echo '    # Uncomment these two lines to force SSL redirect in Apache'
+        echo '    # RewriteCond %{HTTPS} off'
+        echo '    # RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]'
+        echo ''
+        echo '    # Redirect Trailing Slashes If Not A Folder...'
+        echo '    RewriteCond %{REQUEST_FILENAME} !-d'
+        echo '    RewriteCond %{REQUEST_URI} (.+)/$'
+        echo '    RewriteRule ^ %1 [L,R=301]'
+        echo ''
+        echo '    # Handle Front Controller...'
+        echo '    RewriteCond %{REQUEST_FILENAME} !-d'
+        echo '    RewriteCond %{REQUEST_FILENAME} !-f'
+        echo '    RewriteRule ^ index.php [L]'
+        echo ''
+        echo '    # Handle Authorization Header'
+        echo '    RewriteCond %{HTTP:Authorization} .'
+        echo '    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]'
+        # echo ''
+        # echo '    # Security Headers'
+        # echo '    # Header set Strict-Transport-Security "max-age=2592000" env=HTTPS'
+        # echo '    # Header set X-XSS-Protection "1; mode=block"'
+        # echo '    # Header set X-Content-Type-Options nosniff'
+        # echo '    # Header set X-Permitted-Cross-Domain-Policies "master-only"'
+        echo ''
+        echo '</IfModule>'
+      } > $APP_INSTALL_DIR/public/.htaccess
+      # TODO: !! probably change file ownership here
+    }
 
-    set_selinux
-    get_timezone
-    local APP_TMP_DIR="/tmp/snipe-it"
-    local APP_INSTALL_DIR="/opt/snipe-it"
-    local APP_USER="snipeit"
-    local APACHE_USER="apache"
-    local APACHE_CONF_LOCATION="/etc/httpd/conf.d"
+    if [[ "$ENV_DISTRO" == 'fedora' ]]; then
 
-    # install dependencies
-        local packages_fedora='fping git httpd libssh2 mariadb mariadb-devel mariadb-server net-snmp-libs OpenIPMI-libs php php-bcmath php-cli php-common php-embedded php-fpm php-gd php-json php-ldap php-mbstring php-mcrypt php-mysqlnd php-pdo php-simplexml php-xml php-zip unixODBC unzip'
-        # install_deps
-        dnf install -y $packages_fedora > /dev/null 2>&1
-    
-    start_services
-    database_secure
-    database_prepare
+      # Disable SELinux in Fedora
+      set_selinux
 
-    echo -e $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC
+      # Get timezone data.
+      get_timezone
 
-    # add user
-        adduser --home-dir $APP_INSTALL_DIR $APP_USER
+      # Variables for installation
+      local APP_TMP_DIR="/tmp/$APPNAME/snipe-it"
+      local APP_INSTALL_DIR="/opt/snipe-it"
+      local APP_USER="snipeit"
+      local APACHE_USER="apache"
+      local APACHE_CONF_LOCATION="/etc/httpd/conf.d"
 
-    # set directory permissions
-        chmod 755 $APP_INSTALL_DIR
+      # install dependencies
+          # local packages_fedora='fping git httpd libssh2 mariadb mariadb-devel mariadb-server net-snmp-libs OpenIPMI-libs php php-bcmath php-cli php-common php-embedded php-fpm php-gd php-json php-ldap php-mbstring php-mcrypt php-mysqlnd php-pdo php-simplexml php-xml php-zip unixODBC unzip'
+          # dnf install -y $packages_fedora > /dev/null 2>&1
+      
+      # Install packages
+      printf " $INFO Checking dependencies...\\n"
+      install_deps
 
-    # set user password
-        yes $ENV_PASSWORD | passwd $APP_USER
+      # Give some space
+      printf \\n
+      
+      # Enable and start services
+      printf " $INFO Starting services...\\n"
+      start_services
+      firewall_config
 
-    # set user group
-        usermod -aG wheel -aG $APACHE_USER $APP_USER
+      # Give some space
+      printf \\n
 
-    # git clone
-        git clone https://github.com/snipe/snipe-it $APP_TMP_DIR
 
-    # move files
-        # Set shell option 'dotglod' to enable moving hidden (dot files) files.
-        shopt -s dotglob
-        mv $APP_TMP_DIR/* $APP_INSTALL_DIR 
-        shopt -u dotglob
-        rm $APP_INSTALL_DIR/{install,snipeit}.sh
-    # change ownership
-        chown -R $APP_USER:$APP_USER $APP_INSTALL_DIR
+      printf " $INFO Preparing database...\\n"
+      database_secure
+      database_prepare
+      printf "  $TICK Done preparing database.\\n"
 
-    # run as user
+      # Give some space
+      printf \\n
 
-      # cp .env.example .env
-        run_as_user "cd ~/; cp .env.example .env"
+      # echo -e $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC
 
-    # set config file options
-        sed -E -i "s/(^APP_TIMEZONE=)(.*)/\1'"$(echo $ENV_TIMEZONE | sed 's/\//\\\//g')"'/" $APP_INSTALL_DIR/.env
-        sed -E -i "s/(^DB_DATABASE=)(.*)/\1$APP_USER/" $APP_INSTALL_DIR/.env
-        sed -E -i "s/(^DB_USERNAME=)(.*)/\1$APP_USER/" $APP_INSTALL_DIR/.env
-        sed -E -i "s/(^DB_PASSWORD=)(.*)/\1$ENV_PASSWORD/" $APP_INSTALL_DIR/.env
+      # Configuring 
+        printf " $INFO Getting things ready for installation... \\n"
+          # add user
+          adduser --home-dir $APP_INSTALL_DIR $APP_USER > /dev/null 2>&1
+          # set directory permissions
+          chmod 755 $APP_INSTALL_DIR
+          # set user password
+          yes $ENV_PASSWORD | passwd $APP_USER > /dev/null 2>&1
+          # set user group
+          usermod -aG wheel -aG $APACHE_USER $APP_USER
+        printf "  $TICK Done.\\n"
+      
+      # Give some space
+      printf \\n
 
-    # get php composer
-        run_as_user "cd ~/; curl -sS https://getcomposer.org/installer | php"
-        run_as_user "cd ~/; php composer.phar install --no-dev --prefer-source"
-
-    # generate APP_KEY
-        run_as_user "cd ~/; yes y | php artisan key:generate"
-
-    # migrate
-        run_as_user "cd ~/; yes y | php artisan migrate"
-    
-    # change ownership
-        chmod -R 775 $APP_INSTALL_DIR/storage
-        chmod -R 775 $APP_INSTALL_DIR/public/uploads
-        chown -R $APACHE_USER $APP_INSTALL_DIR/{storage,vendor,public}
+      # Download and install Snipe-IT
+      printf " $INFO Downloading and installing Snipe-IT...\\n"
         
-    # create apache.conf file
-        create_vhost
+        printf "  $BUSY Downloading Snipe-IT... "
+          # git clone
+          git clone https://github.com/snipe/snipe-it $APP_TMP_DIR > /dev/null 2>&1
+        printf "done.\\n"
 
-    # edit .htaccess
-        create_htaccess
+        printf "  $BUSY Moving files... "
+          # move files
+          # Set shell option 'dotglod' to enable moving hidden (dot files) files.
+          shopt -s dotglob
+          mv $APP_TMP_DIR/* $APP_INSTALL_DIR 
+          shopt -u dotglob
+          rm $APP_INSTALL_DIR/{install,snipeit}.sh
+          # change ownership
+          chown -R $APP_USER:$APP_USER $APP_INSTALL_DIR
+        printf "done.\\n"
 
-    # 
-        systemctl restart httpd
+      printf " $TICK Done downloading and installing.\\n"
 
+      # Give some space
+      printf \\n
+      
+      printf " $INFO Configuring ... \\n"
+        
+        printf "  $BUSY Configuring .env file... "
+          # cp .env.example .env
+          run_as_user "cd ~/; cp .env.example .env"
+          # set config file options
+          sed -E -i "s/(^APP_TIMEZONE=)(.*)/\1'"$(echo $ENV_TIMEZONE | sed 's/\//\\\//g')"'/" $APP_INSTALL_DIR/.env
+          sed -E -i "s/(^DB_DATABASE=)(.*)/\1$APP_USER/" $APP_INSTALL_DIR/.env
+          sed -E -i "s/(^DB_USERNAME=)(.*)/\1$APP_USER/" $APP_INSTALL_DIR/.env
+          sed -E -i "s/(^DB_PASSWORD=)(.*)/\1$ENV_PASSWORD/" $APP_INSTALL_DIR/.env
+        printf "done.\\n"
+
+        printf "  $BUSY Running PHP Composer (this will take a while, grab a coffee while you wait)... "
+          # get php composer
+          run_as_user "cd ~/; curl -sS https://getcomposer.org/installer | php > /dev/null 2>&1"
+          # run php composer
+          run_as_user "cd ~/; php composer.phar install --no-dev --prefer-source > /dev/null 2>&1"
+
+        printf "done.\\n"
+
+        printf "  $BUSY Populating database... "
+          # generate APP_KEY
+          run_as_user "cd ~/; yes y | php artisan key:generate > /dev/null 2>&1"
+          # migrate
+          run_as_user "cd ~/; yes y | php artisan migrate > /dev/null 2>&1"
+
+        printf "done.\\n"
+
+        printf "  $BUSY Setting permissions... "
+          # change ownership
+          chmod -R 755 $APP_INSTALL_DIR/storage
+          chmod -R 755 $APP_INSTALL_DIR/public/uploads
+          chown -R $APACHE_USER $APP_INSTALL_DIR/{storage,vendor,public}
+        printf "done.\\n"
+
+        printf "  $BUSY Creating Apache VirtualHost... "
+          # create apache.conf file
+          create_vhost
+        printf "done.\\n"
+
+        printf "  $BUSY Creating .htaccess file... "
+          # edit .htaccess
+          create_htaccess
+        printf "done.\\n"
+
+      printf " $TICK Done configuring.\\n"
+
+      # Give some space
+      printf \\n
+      
+      printf " $BUSY Cleaning up... "
+        # Clean up
+        rm -R $APP_TMP_DIR
+      printf "done.\\n"
+
+      # Give some space
+      printf \\n
+
+
+      
+          
+
+# main () stop here
+          # systemctl restart httpd
+          printf " Initialising... \\n"
+          start_services --restart
+
+          # Give some space
+          printf \\n
+
+    fi
+    return 0
+    # TODO: Print -- can only install on Fedora or Ubuntu.
   fi
-  return 0
-  # TODO: Remove snipeit.sh and install.sh after git clone.
+
 }
 
 
 main () {
   
+  # - SHOW LOGO
+      show_ascii_logo
   # - GET TIMEZONE
+      get_timezone
   # - SELINUX
-  # - (nope) SET TEMP DIR
+      set_selinux
   # - INSTALL DEPS
-  # - INSTALL SOFTWARE (from recipes/functions)
-  # - START SERVICES
-  # - FIREWALL RULES
+      install_deps
   # - SECURE DATABASE
+      database_secure
   # - PREPARE DATABASE
+      database_prepare
+  # - INSTALL SOFTWARE (from recipes/functions)
+      install_zabbix
+      install_snipeit
+  # - START SERVICES
+      start_services
+  # - FIREWALL RULES
+      firewall_config
   # - CONFIGURATIONS
   # - 
 
@@ -674,5 +800,5 @@ main () {
 # RUN STUFF
 # show_ascii_logo
 
-install_zabbix 
-# install_snipeit
+# install_zabbix 
+install_snipeit

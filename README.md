@@ -3,6 +3,14 @@
 ITSM for FOSS project. Installs free and open-source software to manage ICT operations.
 
 ## Testing
+### 0.8.0:
+- [x] **Zabbix** :: Fedora Builds
+- ~~**Zabbix** :: 18.04 Builds~~
+- ~~**Zabbix** :: 20.04 Builds~~
+
+- [x] **Snipe-IT** :: Fedora Builds
+- ~~**Snipe-IT** :: 18.04 Builds~~
+- ~~**Snipe-IT** :: 20.04 Builds~~
 
 ### 0.7.0:
 - ~~**Zabbix** :: 18.04 Builds~~
@@ -11,15 +19,21 @@ ITSM for FOSS project. Installs free and open-source software to manage ICT oper
   - NOTES: ```./test/script.sh: line 741: unexpected EOF while looking for matching `"'```
 
 > Snipe-IT in progress
+> - [ ] **Snipe-IT** :: Fedora Builds
 > - [ ] **Snipe-IT** :: 18.04 Builds
 > - [ ] **Snipe-IT** :: 20.04 Builds
-> - [ ] **Snipe-IT** :: Fedora Builds
+
+### 0.0.5:
+
+- [x] **Zabbix** :: Fedora Builds
+- [x] **Zabbix** :: 18.04 Builds
+- [x] **Zabbix** :: 20.04 Builds
 
 ### 0.0.4:
 
+- [x] **Zabbix** :: Fedora Builds
 - [x] **Zabbix** :: 18.04 Builds
 - [x] **Zabbix** :: 20.04 Builds
-- [x] **Zabbix** :: Fedora Builds
 
 ## Dependencies
 
