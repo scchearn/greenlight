@@ -209,14 +209,8 @@ set_selinux () {
 start_services () {
   # -r, --restart    Restarts services
   # 
-  
-# for Fedora
-  if [[ "$ENV_DISTRO" == "fedora" ]]; then
-    # TODO: ?? These services needs to be moved outside of the function.
-    # local services='httpd php-fpm mariadb zabbix-server zabbix-agent'
-    local services='httpd php-fpm mariadb'
-    # Let's go through the list of services and
-    for service in $services; do
+  if [[ "$ENV_DISTRO" == "fedora" ||  "$ENV_DISTRO" == "ubuntu" ]]; then
+    for service in $APP_SERVICES; do
       if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then printf "  $TICK Enabling $service..."; else printf "  $TICK Reloading $service..."; fi
       # enable them one by one.
       if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then
@@ -230,25 +224,8 @@ start_services () {
           echo -e "$COLOUR_LIGHT_RED failed.$COLOUR_NC"
         fi
     done
-  fi
-# for Ubuntu
-  if [[ "$ENV_DISTRO" == "ubuntu" ]]; then
-    # TODO: ?? These services needs to be moved outside of the function.
-    local services='apache2 zabbix-server zabbix-agent'
-    # Let's go through the list of services and
-    for service in $services; do
-      # printf "  $TICK Enabling $service... "
-      if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then
-        systemctl restart $service > /dev/null 2>&1
-      else
-        systemctl enable --now $service > /dev/null 2>&1
-      fi
-        if [[ $? -eq 0 ]]; then
-          echo -e " done."
-        else
-          echo -e "$COLOUR_LIGHT_RED failed.$COLOUR_NC"
-        fi
-    done
+  else
+    echo - " $ERROR Cannot start or stop services on this OS."
   fi
 }
 
@@ -417,8 +394,13 @@ install_zabbix () {
       get_timezone
       
     # Temporary location to save install files
-      local ENV_TMP_DIR="/tmp/$APPNAME/zabbix"
+      local APP_TMP_DIR="/tmp/$APPNAME/zabbix"
       local APP_USER="zabbix"
+      if [[ "$ENV_DISTRO" == "fedora" ]]; then
+        local APP_SERVICES="httpd php-fpm mariadb zabbix-server zabbix-agent"
+      elif [[ "$ENV_DISTRO" == "ubuntu" ]]; then
+        local APP_SERVICES="apache2 zabbix-server zabbix-agent"
+      fi
 
     # Disable SELinux in Fedora
       set_selinux
@@ -436,11 +418,11 @@ install_zabbix () {
       # TODO: Add comments here.
         if [[ "$ENV_DISTRO" == "fedora" ]]; then
           printf "  $BUSY Downloading... "
-          wget -q -nc -P $ENV_TMP_DIR https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-agent-5.2.6-1.el8.x86_64.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-apache-conf-5.2.6-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-server-mysql-5.2.6-1.el8.x86_64.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-mysql-5.2.6-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-deps-5.2.6-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-5.2.6-1.el8.noarch.rpm
+          wget -q -nc -P $APP_TMP_DIR https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-agent-5.2.6-1.el8.x86_64.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-apache-conf-5.2.6-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-server-mysql-5.2.6-1.el8.x86_64.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-mysql-5.2.6-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-deps-5.2.6-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-5.2.6-1.el8.noarch.rpm
           printf "done\\n"
           printf "  $BUSY Installing...\\n"
           rpm -import https://repo.zabbix.com/RPM-GPG-KEY-ZABBIX-A14FE591
-          rpm -ivh $ENV_TMP_DIR"/zabbix-*" > /dev/stdout
+          rpm -ivh $APP_TMP_DIR"/zabbix-*" > /dev/stdout
         fi
       # for Ubuntu
       # TODO: Add comments to this section.
@@ -450,7 +432,7 @@ install_zabbix () {
           # TODO: Expand this error handling across the script.
           # TODO: Add comments to this section.
           printf "  $BUSY Downloading... "
-          local wgetResult=$(wget -v -nc -P $ENV_TMP_DIR $url 2>&1; echo $?)
+          local wgetResult=$(wget -v -nc -P $APP_TMP_DIR $url 2>&1; echo $?)
           local wgetExitCode="${wgetResult##*$'\n'}"
             if [[ $wgetExitCode != 0 ]]; then
               printf "  $ERROR [$wgetExitCode] Error occurred, couldn't download Zabbix at:\\n  -> $url\\n"
@@ -527,21 +509,17 @@ install_zabbix () {
       # init 3
       # printf "done, thank you.\\n\\n"
     
-      printf " Initialising... "
+      printf " Initialising...\\n"
       start_services --restart
 
     # Clean up
-      rm -R $ENV_TMP_DIR
+      rm -R $APP_TMP_DIR
 
   else
     printf "Nothing to do\\n"
   fi
 
 }
-
-# #######################################
-#   WORK IN PROGRESS
-# #######################################
 
 # Snipe-IT recipe
 install_snipeit () {
@@ -552,7 +530,7 @@ install_snipeit () {
       {
         echo "<VirtualHost *:80>"
         echo ""
-        echo "  Alias /snipe-it $APP_INSTALL_DIR/public"
+        echo "  Alias /$URL_SLUG \"$APP_INSTALL_DIR/public\""
         echo ""
         echo "  <Directory $APP_INSTALL_DIR/public>"
         echo "      Allow From All"
@@ -565,7 +543,7 @@ install_snipeit () {
         echo "  ServerName $(hostname --fqdn)"
         echo ""
         echo "</VirtualHost>"
-      } >> $APACHE_CONF_LOCATION/$APP_USER.conf
+      } > $APACHE_CONF_LOCATION/$APP_USER.conf
     }
 
     create_htaccess () {
@@ -576,7 +554,7 @@ install_snipeit () {
         echo '    </IfModule>'
         echo ''
         echo '    RewriteEngine On'
-        echo '    RewriteBase /snipe-it'
+        echo "    RewriteBase /$URL_SLUG"
         echo ''
         echo '    # Uncomment these two lines to force SSL redirect in Apache'
         echo '    # RewriteCond %{HTTPS} off'
@@ -619,13 +597,11 @@ install_snipeit () {
       local APP_TMP_DIR="/tmp/$APPNAME/snipe-it"
       local APP_INSTALL_DIR="/opt/snipe-it"
       local APP_USER="snipeit"
+      local APP_SERVICES="httpd php-fpm mariadb"
       local APACHE_USER="apache"
       local APACHE_CONF_LOCATION="/etc/httpd/conf.d"
-
-      # install dependencies
-          # local packages_fedora='fping git httpd libssh2 mariadb mariadb-devel mariadb-server net-snmp-libs OpenIPMI-libs php php-bcmath php-cli php-common php-embedded php-fpm php-gd php-json php-ldap php-mbstring php-mcrypt php-mysqlnd php-pdo php-simplexml php-xml php-zip unixODBC unzip'
-          # dnf install -y $packages_fedora > /dev/null 2>&1
-      
+      local URL_SLUG="snipe-it"
+# ----  
       # Install packages
       printf " $INFO Checking dependencies...\\n"
       install_deps
@@ -641,7 +617,6 @@ install_snipeit () {
       # Give some space
       printf \\n
 
-
       printf " $INFO Preparing database...\\n"
       database_secure
       database_prepare
@@ -649,8 +624,6 @@ install_snipeit () {
 
       # Give some space
       printf \\n
-
-      # echo -e $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC
 
       # Configuring 
         printf " $INFO Getting things ready for installation... \\n"
@@ -683,7 +656,7 @@ install_snipeit () {
           shopt -u dotglob
           rm $APP_INSTALL_DIR/{install,snipeit}.sh
           # change ownership
-          chown -R $APP_USER:$APP_USER $APP_INSTALL_DIR
+          chown -R $APP_USER:$APACHE_USER $APP_INSTALL_DIR
         printf "done.\\n"
 
       printf " $TICK Done downloading and installing.\\n"
@@ -740,7 +713,7 @@ install_snipeit () {
 
       # Give some space
       printf \\n
-      
+
       printf " $BUSY Cleaning up... "
         # Clean up
         rm -R $APP_TMP_DIR
@@ -748,19 +721,22 @@ install_snipeit () {
 
       # Give some space
       printf \\n
+# ----
+      # main () stop here
+      printf " Initialising... \\n"
+      start_services --restart
 
+      # Give some space
+      printf \\n
 
       
           
 
-# main () stop here
-          # systemctl restart httpd
-          printf " Initialising... \\n"
-          start_services --restart
 
-          # Give some space
-          printf \\n
 
+    elif [[ "$ENV_DISTRO" == 'ubuntu' ]]; then
+      local APP_SERVICES="apache2 zabbix-server zabbix-agent"
+      continue
     fi
     return 0
     # TODO: Print -- can only install on Fedora or Ubuntu.
@@ -798,7 +774,7 @@ main () {
 }
 
 # RUN STUFF
-# show_ascii_logo
+show_ascii_logo
 
-# install_zabbix 
+install_zabbix 
 install_snipeit
