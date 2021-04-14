@@ -292,8 +292,9 @@ install_deps () {
 
   # Dependencies differ between distributions, define them here.
   local packages_fedora='fping git httpd libssh2 mariadb mariadb-devel mariadb-server net-snmp-libs OpenIPMI-libs php php-bcmath php-cli php-common php-embedded php-fpm php-gd php-json php-ldap php-mbstring php-mcrypt php-mysqlnd php-pdo php-simplexml php-xml php-zip unixODBC unzip'
-  local packages_ubuntu_18='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php7.4 libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient20 libodbc1 libopenipmi0 libsnmp-base libsnmp30 libssh-4 mysql-client mysql-client-5.7 mysql-client-core-5.7 mysql-common mysql-server php7.4 php7.4-bcmath php7.4-cli php7.4-common php7.4-curl php7.4-gd php7.4-json php7.4-ldap php7.4-mbstring php7.4-mysql php7.4-opcache php7.4-readline php7.4-xml php7.4-zip snmpd ssl-cert'
-  local packages_ubuntu_20='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient21 libodbc1 libopenipmi0 libsnmp-base libsnmp35 libssh-4 mariadb-client mariadb-server php php-bcmath php-cli php-common php-gd php-json php-ldap php-mbstring php-mysql php-opcache php-readline php-xml snmpd ssl-cert'
+  # local packages_ubuntu_18='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php7.4 libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient20 libodbc1 libopenipmi0 libsnmp-base libsnmp30 libssh-4 mysql-client mysql-client-5.7 mysql-client-core-5.7 mysql-common mysql-server php7.4 php7.4-bcmath php7.4-cli php7.4-common php7.4-curl php7.4-gd php7.4-json php7.4-ldap php7.4-mbstring php7.4-mysql php7.4-opcache php7.4-readline php7.4-xml php7.4-zip snmpd ssl-cert'
+  local packages_ubuntu_18='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php7.4 libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient20 libodbc1 libopenipmi0 libsnmp-base libsnmp30 libssh-4 mariadb-client mariadb-server mariadb-common php7.4 php7.4-bcmath php7.4-cli php7.4-common php7.4-curl php7.4-gd php7.4-json php7.4-ldap php7.4-mbstring php7.4-mysql php7.4-opcache php7.4-readline php7.4-xml php7.4-zip snmpd ssl-cert'
+  local packages_ubuntu_20='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient21 libodbc1 libopenipmi0 libsnmp-base libsnmp35 libssh-4 mariadb-client mariadb-server php php-bcmath php-cli php-common php-curl php-gd php-json php-ldap php-mbstring php-mysql php-opcache php-readline php-xml snmpd ssl-cert'
 
   # Fedora Install
   if [[ "$ENV_DISTRO" == "fedora" ]]; then
@@ -399,7 +400,7 @@ install_zabbix () {
       if [[ "$ENV_DISTRO" == "fedora" ]]; then
         local APP_SERVICES="httpd php-fpm mariadb zabbix-server zabbix-agent"
       elif [[ "$ENV_DISTRO" == "ubuntu" ]]; then
-        local APP_SERVICES="apache2 zabbix-server zabbix-agent"
+        local APP_SERVICES="apache2 mariadb zabbix-server zabbix-agent"
       fi
 
     # Disable SELinux in Fedora
@@ -502,15 +503,10 @@ install_zabbix () {
     # Give some space
     printf \\n
 
-    # TODO: !! Create a function to reload all relevant services.
-    # Reload all services, yikes!
-      # init 1; init 3
-      # TODO: !! This is only relevant to Fedora (so far). Reload firewalld service on Fedora.
-      # init 3
-      # printf "done, thank you.\\n\\n"
-    
+    # Reload all services.
       printf " Initialising...\\n"
       start_services --restart
+      printf "done, thank you.\\n\\n"
 
     # Clean up
       rm -R $APP_TMP_DIR
@@ -525,7 +521,10 @@ install_zabbix () {
 install_snipeit () {
   
   if [[ "$ENV_DISTRO" == "fedora" || "$ENV_DISTRO" == "ubuntu" ]]; then
-
+    
+    # let the user know we're ready
+    printf " $INFO Ready to install Snipe-IT on $ENV_DISTRO_NAME $ENV_DISTRO_VERSION_FULL\\n\\n"
+    
     create_vhost () {
       {
         echo "<VirtualHost *:80>"
@@ -585,7 +584,8 @@ install_snipeit () {
       # TODO: !! probably change file ownership here
     }
 
-    if [[ "$ENV_DISTRO" == 'fedora' ]]; then
+    # Start installing
+    # if [[ "$ENV_DISTRO" == 'fedora' ]]; then
 
       # Disable SELinux in Fedora
       set_selinux
@@ -597,11 +597,21 @@ install_snipeit () {
       local APP_TMP_DIR="/tmp/$APPNAME/snipe-it"
       local APP_INSTALL_DIR="/opt/snipe-it"
       local APP_USER="snipeit"
-      local APP_SERVICES="httpd php-fpm mariadb"
-      local APACHE_USER="apache"
-      local APACHE_CONF_LOCATION="/etc/httpd/conf.d"
       local URL_SLUG="snipe-it"
-# ----  
+
+      if [[ "$ENV_DISTRO" == "fedora" ]]; then
+        local APP_SERVICES="httpd php-fpm mariadb"
+        local APACHE_USER="apache"
+        local APACHE_CONF_LOCATION="/etc/httpd/conf.d"
+
+      elif [[ "$ENV_DISTRO" == "ubuntu" ]]; then
+        local APP_SERVICES="apache2 mariadb"
+        local APACHE_USER="www-data"
+        local APACHE_CONF_LOCATION="/etc/apache2/sites-available"
+
+      fi
+
+      # ----  
       # Install packages
       printf " $INFO Checking dependencies...\\n"
       install_deps
@@ -628,7 +638,14 @@ install_snipeit () {
       # Configuring 
         printf " $INFO Getting things ready for installation... \\n"
           # add user
-          adduser --home-dir $APP_INSTALL_DIR $APP_USER > /dev/null 2>&1
+          case $ENV_DISTRO in
+            'fedora' )
+              adduser --home-dir $APP_INSTALL_DIR $APP_USER > /dev/null 2>&1
+              ;;
+            'ubuntu' )
+              adduser --quiet --gecos \"\" --home $APP_INSTALL_DIR --disabled-password $APP_USER > /dev/null 2>&1
+              ;;
+          esac
           # set directory permissions
           chmod 755 $APP_INSTALL_DIR
           # set user password
@@ -702,6 +719,10 @@ install_snipeit () {
         printf "  $BUSY Creating Apache VirtualHost... "
           # create apache.conf file
           create_vhost
+          # TODO: !! Ubuntu/Apache, run a2ensite.
+          if [[ "$ENV_DISTRO" == "ubuntu" ]]; then
+            a2ensite $APP_USER.conf
+          fi
         printf "done.\\n"
 
         printf "  $BUSY Creating .htaccess file... "
@@ -721,23 +742,20 @@ install_snipeit () {
 
       # Give some space
       printf \\n
-# ----
+      
+      # ----
       # main () stop here
       printf " Initialising... \\n"
       start_services --restart
+      printf " done, thank you.\\n\\n"
 
       # Give some space
       printf \\n
 
-      
-          
+    # elif [[ "$ENV_DISTRO" == 'ubuntu' ]]; then
+      # local APP_SERVICES="apache2 zabbix-server zabbix-agent"
+    # fi
 
-
-
-    elif [[ "$ENV_DISTRO" == 'ubuntu' ]]; then
-      local APP_SERVICES="apache2 zabbix-server zabbix-agent"
-      continue
-    fi
     return 0
     # TODO: Print -- can only install on Fedora or Ubuntu.
   fi
@@ -776,5 +794,5 @@ main () {
 # RUN STUFF
 show_ascii_logo
 
-install_zabbix 
+# install_zabbix 
 install_snipeit
