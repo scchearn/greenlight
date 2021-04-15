@@ -52,7 +52,7 @@ readonly APP_LOG="/tmp/$APPNAME/app.log"
 # status, unless the command that fails is part of an until or while loop, part of an
 # if statement, part of a && or || list, or if the command's return status
 # is being inverted using !.  -o errexit
-# set -e
+# set -echo
 
 # -e option instructs bash to print a trace of simple commands and their arguments
 # after they are expanded and before they are executed. -o xtrace
@@ -180,7 +180,7 @@ database_secure () {
 # #########################################################
 database_prepare () {
   local APP_DBNAME=${APP_USER}
-  printf "  $BUSY Creating database... "
+  printf "  $BUSY Creating database for $APP_NAME... "
   # Create databases, users and grant privileges
   mysql -u root -p"$ENV_PASSWORD" -e "CREATE USER '$APP_USER'@localhost IDENTIFIED BY '$ENV_PASSWORD'" > /dev/null 2>&1
   mysql -u root -p"$ENV_PASSWORD" -e "CREATE DATABASE $APP_DBNAME character set utf8 collate utf8_bin" > /dev/null 2>&1
@@ -210,23 +210,68 @@ start_services () {
   # -r, --restart    Restarts services
   # 
   if [[ "$ENV_DISTRO" == "fedora" ||  "$ENV_DISTRO" == "ubuntu" ]]; then
-    for service in $APP_SERVICES; do
-      if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then printf "  $TICK Enabling $service..."; else printf "  $TICK Reloading $service..."; fi
-      # enable them one by one.
-      if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then
-        systemctl enable --now $service > /dev/null 2>&1
-      else
-        systemctl restart $service > /dev/null 2>&1
-      fi
-        if [[ $? -eq 0 ]]; then
-          echo -e " done."
-        else
-          echo -e "$COLOUR_LIGHT_RED failed.$COLOUR_NC"
-        fi
+  #   for service in $APP_SERVICES; do
+  #     if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then printf "  $TICK Enabling $service..."; else printf "  $TICK Reloading $service..."; fi
+  #     # enable them one by one.
+  #     if ! [[ "$@" == "-r" || "$@" == "--restart" ]]; then
+  #       systemctl enable --now $service > /dev/null 2>&1
+  #     else
+  #       systemctl restart $service > /dev/null 2>&1
+  #     fi
+  #       if [[ $? -eq 0 ]]; then
+  #         echo -e " done."
+  #       else
+  #         echo -e "$COLOUR_LIGHT_RED failed.$COLOUR_NC"
+  #       fi
+  #   done
+  # else
+  #   echo - " $ERROR Cannot start or stop services on this OS."
+
+
+
+    while [[ "$#" -gt 0 ]]; do
+      case $1 in
+        --enable )
+          local param="enable"
+          ;;
+        --restart )
+          local param="restart"
+          ;;
+        * )
+          local services+=($1)
+          ;;
+      esac
+      shift
     done
-  else
-    echo - " $ERROR Cannot start or stop services on this OS."
+
+    case $param in
+      enable )
+        for service in "${services[@]}"; do
+          printf "  $TICK Enabling $service..."
+          systemctl enable $service > /dev/null 2>&1
+          systemctl start $service > /dev/null 2>&1
+          if [[ $? -eq 0 ]]; then
+            echo -e " done."
+          else
+            echo -e "$COLOUR_LIGHT_RED failed.$COLOUR_NC"
+          fi
+        done
+        ;;
+      restart )
+        for service in "${services[@]}"; do
+          printf "  $TICK Reloading $service..."
+          systemctl restart $service > /dev/null 2>&1
+          if [[ $? -eq 0 ]]; then
+            echo -e " done."
+          else
+            echo -e "$COLOUR_LIGHT_RED failed.$COLOUR_NC"
+          fi
+        done
+        ;;
+    esac
   fi
+
+
 }
 
 # WRITE STUFF HERE
@@ -292,7 +337,6 @@ install_deps () {
 
   # Dependencies differ between distributions, define them here.
   local packages_fedora='fping git httpd libssh2 mariadb mariadb-devel mariadb-server net-snmp-libs OpenIPMI-libs php php-bcmath php-cli php-common php-embedded php-fpm php-gd php-json php-ldap php-mbstring php-mcrypt php-mysqlnd php-pdo php-simplexml php-xml php-zip unixODBC unzip'
-  # local packages_ubuntu_18='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php7.4 libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient20 libodbc1 libopenipmi0 libsnmp-base libsnmp30 libssh-4 mysql-client mysql-client-5.7 mysql-client-core-5.7 mysql-common mysql-server php7.4 php7.4-bcmath php7.4-cli php7.4-common php7.4-curl php7.4-gd php7.4-json php7.4-ldap php7.4-mbstring php7.4-mysql php7.4-opcache php7.4-readline php7.4-xml php7.4-zip snmpd ssl-cert'
   local packages_ubuntu_18='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php7.4 libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient20 libodbc1 libopenipmi0 libsnmp-base libsnmp30 libssh-4 mariadb-client mariadb-server mariadb-common php7.4 php7.4-bcmath php7.4-cli php7.4-common php7.4-curl php7.4-gd php7.4-json php7.4-ldap php7.4-mbstring php7.4-mysql php7.4-opcache php7.4-readline php7.4-xml php7.4-zip snmpd ssl-cert'
   local packages_ubuntu_20='apache2 apache2-bin apache2-data apache2-utils fonts-dejavu fonts-dejavu-extra fping libapache2-mod-php libapr1 libaprutil1 libaprutil1-dbd-sqlite3 libaprutil1-ldap libgd3 libltdl7 libmysqlclient21 libodbc1 libopenipmi0 libsnmp-base libsnmp35 libssh-4 mariadb-client mariadb-server php php-bcmath php-cli php-common php-curl php-gd php-json php-ldap php-mbstring php-mysql php-opcache php-readline php-xml snmpd ssl-cert'
 
@@ -386,42 +430,50 @@ install_deps () {
 # Recipe for installing Zabbix
 install_zabbix () {
   
-  if [[ "$ENV_DISTRO" == "fedora" || "$ENV_DISTRO" == "ubuntu" ]]; then
 
+  # REMOVE FOR main()
+  # if [[ "$ENV_DISTRO" == "fedora" || "$ENV_DISTRO" == "ubuntu" ]]; then
+
+    # Give some space
+    printf \\n
     # let the user know we're ready
     printf " $INFO Ready to install Zabbix on $ENV_DISTRO_NAME $ENV_DISTRO_VERSION_FULL\\n\\n"
     
     # Get timezone data.
-      get_timezone
+      # REMOVE FOR main()
+      # get_timezone
       
     # Temporary location to save install files
       local APP_TMP_DIR="/tmp/$APPNAME/zabbix"
       local APP_USER="zabbix"
+      local APP_NAME="Zabbix"
       if [[ "$ENV_DISTRO" == "fedora" ]]; then
-        local APP_SERVICES="httpd php-fpm mariadb zabbix-server zabbix-agent"
+        local APP_SERVICES="zabbix-server zabbix-agent"
+        local HTTPD_SERVICE="httpd"
       elif [[ "$ENV_DISTRO" == "ubuntu" ]]; then
-        local APP_SERVICES="apache2 mariadb zabbix-server zabbix-agent"
+        local APP_SERVICES="zabbix-server zabbix-agent"
+        local HTTPD_SERVICE="apache2"
       fi
 
     # Disable SELinux in Fedora
-      set_selinux
+      # REMOVE FOR main()
+      # set_selinux
 
     # Install packages
-      printf " $INFO Checking dependencies...\\n"
-      install_deps
+      # printf "  $INFO Checking dependencies...\\n"
+      # REMOVE FOR main()
+      # install_deps
     
-    # Give some space
-    printf \\n
 
     # Download and install Zabbix
-      printf " $INFO Downloading and installing Zabbix...\\n"
+      printf "  $INFO Downloading and installing Zabbix...\\n"
       # for Fedora
       # TODO: Add comments here.
         if [[ "$ENV_DISTRO" == "fedora" ]]; then
-          printf "  $BUSY Downloading... "
+          printf "   $BUSY Downloading... "
           wget -q -nc -P $APP_TMP_DIR https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-agent-5.2.6-1.el8.x86_64.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-apache-conf-5.2.6-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-server-mysql-5.2.6-1.el8.x86_64.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-mysql-5.2.6-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-deps-5.2.6-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-5.2.6-1.el8.noarch.rpm
           printf "done\\n"
-          printf "  $BUSY Installing...\\n"
+          printf "   $BUSY Installing...\\n"
           rpm -import https://repo.zabbix.com/RPM-GPG-KEY-ZABBIX-A14FE591
           rpm -ivh $APP_TMP_DIR"/zabbix-*" > /dev/stdout
         fi
@@ -432,63 +484,59 @@ install_zabbix () {
           local url='https://repo.zabbix.com/zabbix/5.2/ubuntu/pool/main/z/zabbix-release/zabbix-release_5.2-1+ubuntu'$ENV_DISTRO_VERSION_ID'_all.deb'
           # TODO: Expand this error handling across the script.
           # TODO: Add comments to this section.
-          printf "  $BUSY Downloading... "
+          printf "   $BUSY Downloading... "
           local wgetResult=$(wget -v -nc -P $APP_TMP_DIR $url 2>&1; echo $?)
           local wgetExitCode="${wgetResult##*$'\n'}"
             if [[ $wgetExitCode != 0 ]]; then
-              printf "  $ERROR [$wgetExitCode] Error occurred, couldn't download Zabbix at:\\n  -> $url\\n"
+              printf "   $ERROR [$wgetExitCode] Error occurred, couldn't download Zabbix at:\\n  -> $url\\n"
               exit 1
             fi
           printf "done.\\n"
 
-          printf "  $BUSY Installing... "
+          printf "   $BUSY Installing... "
           local filename=$(ls /tmp/$APPNAME/zabbix/zabbix-*)
           local dpkgResult=$(dpkg -i $filename 2>&1; echo $?)
           local dpkgExitCode="${dpkgResult##*$'\n'}"
             if [[ $dpkgExitCode != 0 ]]; then
-              printf "  $ERROR [$dpkgExitCode] Error occurred, couldn't install Zabbix.\\n"
+              printf "   $ERROR [$dpkgExitCode] Error occurred, couldn't install Zabbix.\\n"
               exit 1
             fi
           apt update -y > /dev/null 2>&1
           apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-agent > /dev/null 2>&1
           printf "done\\n"
           # Set timezone information in /etc/zabbix/apache.conf file.
-          printf "  $INFO Setting installation timezone to: $COLOUR_LIGHT_PURPLE$ENV_TIMEZONE$COLOUR_NC\\n"
+          printf "   $INFO Setting installation timezone to: $COLOUR_LIGHT_PURPLE$ENV_TIMEZONE$COLOUR_NC\\n"
           sed -E -i 's/(^.*)(# php_value date.timezone).*/\1php_value date.timezone '$(echo $ENV_TIMEZONE | sed 's/\//\\\//g')'/' /etc/zabbix/apache.conf
         fi
 
     # Give some space
     printf \\n
 
-    # Enable and start services
-      printf " $INFO Starting services...\\n"
-      start_services
-      firewall_config
-
-    # Give some space
-    printf \\n
-
     # Prepare SQL database
       # Secure the database,
-      printf " $INFO Preparing database...\\n"
-        database_secure # TODO: !! Run this only once. 
+      printf "  $INFO Preparing database...\\n"
+        # REMOVE FOR main()
+        # database_secure # TODO: !! Run this only once. 
         # create users and grant privileges etc.
+        # REMOVE FOR main()
         database_prepare
-        printf "  $TICK$F_BOLD Database password [keep it in a safe place]$F_END: $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC\\n"
-      printf "  $TICK Done preparing database.\\n"
+        printf "   $TICK$F_BOLD Database password [keep it in a safe place]$F_END: $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC\\n"
+      printf "   $TICK Done preparing database.\\n"
 
     # Give some space
     printf \\n
+
+
     
     # Configuring 
-      printf " $INFO Configuring ... \\n"
+      printf "  $INFO Configuring ... \\n"
       # Add the database password to zabbix_server.conf file with some regex magic
-        printf "  $BUSY Checking conf file... "
+        printf "   $BUSY Checking conf file... "
         sed -E -i 's/(^# DBPassword*=)/DBPassword='$ENV_PASSWORD'/' /etc/zabbix/zabbix_server.conf
         printf "done.\\n"
 
       # Load Zabbix schema from file
-        printf "  $BUSY Loading Zabbix DB schema (this might take a while)... "
+        printf "   $BUSY Loading Zabbix DB schema (this might take a while)... "
         # Check if the schema file exists,
         if [[ -f /usr/share/doc/zabbix-server-mysql/create.sql.gz ]]; then
           # and pipe the contents to mysql.
@@ -497,30 +545,49 @@ install_zabbix () {
         else
           printf "already loaded.\\n"
         fi
-      printf "  $TICK Configuration complete.\\n"
+      printf "   $TICK Configuration complete.\\n"
 
 
     # Give some space
     printf \\n
 
     # Reload all services.
-      printf " Initialising...\\n"
-      start_services --restart
-      printf "done, thank you.\\n\\n"
+      # printf " Initialising...\\n"
+      # # REMOVE FOR main()
+      # start_services --restart $APP_SERVICES
+      # printf "done, thank you.\\n\\n"
+
+    # Enable and start services
+      printf "  $INFO Starting services...\\n"
+      # REMOVE FOR main()
+      start_services --restart $HTTPD_SERVICE
+      start_services --enable $APP_SERVICES
+      printf " done, thank you.\\n\\n"
+      # REMOVE FOR main()
+      # firewall_config
+
+    # Give some space
+    # printf \\n
 
     # Clean up
       rm -R $APP_TMP_DIR
-
-  else
-    printf "Nothing to do\\n"
-  fi
+  # REMOVE FOR main()
+  # else
+    # REMOVE FOR main()
+    # printf "Nothing to do\\n"
+  # REMOVE FOR main()
+  # fi
 
 }
 
 # Snipe-IT recipe
 install_snipeit () {
   
-  if [[ "$ENV_DISTRO" == "fedora" || "$ENV_DISTRO" == "ubuntu" ]]; then
+  # REMOVE FOR main() SNIPEIT
+  # if [[ "$ENV_DISTRO" == "fedora" || "$ENV_DISTRO" == "ubuntu" ]]; then
+    
+    # Give some space
+    printf \\n
     
     # let the user know we're ready
     printf " $INFO Ready to install Snipe-IT on $ENV_DISTRO_NAME $ENV_DISTRO_VERSION_FULL\\n\\n"
@@ -588,24 +655,27 @@ install_snipeit () {
     # if [[ "$ENV_DISTRO" == 'fedora' ]]; then
 
       # Disable SELinux in Fedora
-      set_selinux
+      # REMOVE FOR main() SNIPEIT
+      # set_selinux
 
       # Get timezone data.
-      get_timezone
+      # REMOVE FOR main() SNIPEIT
+      # get_timezone
 
       # Variables for installation
       local APP_TMP_DIR="/tmp/$APPNAME/snipe-it"
       local APP_INSTALL_DIR="/opt/snipe-it"
       local APP_USER="snipeit"
+      local APP_NAME="Snipe-IT"
       local URL_SLUG="snipe-it"
 
       if [[ "$ENV_DISTRO" == "fedora" ]]; then
-        local APP_SERVICES="httpd php-fpm mariadb"
+        local APP_SERVICES="httpd"
         local APACHE_USER="apache"
         local APACHE_CONF_LOCATION="/etc/httpd/conf.d"
 
       elif [[ "$ENV_DISTRO" == "ubuntu" ]]; then
-        local APP_SERVICES="apache2 mariadb"
+        local APP_SERVICES="apache2"
         local APACHE_USER="www-data"
         local APACHE_CONF_LOCATION="/etc/apache2/sites-available"
 
@@ -613,22 +683,27 @@ install_snipeit () {
 
       # ----  
       # Install packages
-      printf " $INFO Checking dependencies...\\n"
-      install_deps
+      # printf " $INFO Checking dependencies...\\n"
+      # REMOVE FOR main() SNIPEIT
+      # install_deps
 
       # Give some space
       printf \\n
       
       # Enable and start services
-      printf " $INFO Starting services...\\n"
-      start_services
-      firewall_config
+      # printf " $INFO Starting services...\\n"
+      # REMOVE FOR main() SNIPEIT
+      # start_services --enable $APP_SERVICES
+      # REMOVE FOR main() SNIPEIT
+      # firewall_config
 
       # Give some space
-      printf \\n
+      # printf \\n
 
       printf " $INFO Preparing database...\\n"
-      database_secure
+      # REMOVE FOR main() SNIPEIT
+      # database_secure
+      # REMOVE FOR main() SNIPEIT
       database_prepare
       printf "  $TICK Done preparing database.\\n"
 
@@ -651,8 +726,6 @@ install_snipeit () {
           # set user password
           yes $ENV_PASSWORD | passwd $APP_USER > /dev/null 2>&1
           # set user group
-          # TODO: !! Ubuntu does not have the group wheel.
-          # usermod -aG wheel -aG $APACHE_USER $APP_USER
           usermod -aG $APACHE_USER $APP_USER
         printf "  $TICK Done.\\n"
       
@@ -748,7 +821,8 @@ install_snipeit () {
       # ----
       # main () stop here
       printf " Initialising... \\n"
-      start_services --restart
+      # REMOVE FOR main() SNIPEIT
+      start_services --restart $APP_SERVICES
       printf " done, thank you.\\n\\n"
 
       # Give some space
@@ -756,41 +830,48 @@ install_snipeit () {
 
     return 0
     # TODO: Print -- can only install on Fedora or Ubuntu.
-  fi
+  # REMOVE FOR main() SNIPEIT
+  # fi
 
 }
 
 
 main () {
   
-  # - SHOW LOGO
-      show_ascii_logo
-  # - GET TIMEZONE
-      get_timezone
-  # - SELINUX
-      set_selinux
-  # - INSTALL DEPS
-      install_deps
-  # - SECURE DATABASE
-      database_secure
-  # - PREPARE DATABASE
-      database_prepare
-  # - INSTALL SOFTWARE (from recipes/functions)
-      install_zabbix
-      install_snipeit
-  # - START SERVICES
-      start_services
-  # - FIREWALL RULES
-      firewall_config
-  # - CONFIGURATIONS
-  # - 
+  if [[ "$ENV_DISTRO" == "fedora" || "$ENV_DISTRO" == "ubuntu" ]]; then
+    
+    # - SHOW LOGO
+        show_ascii_logo
+        printf "$INFO Ready to install from 'main()' on $ENV_DISTRO_NAME $ENV_DISTRO_VERSION_FULL\\n\\n"
+    # - GET TIMEZONE
+        get_timezone
+    # - SELINUX
+        set_selinux
+    # - INSTALL DEPS
+        install_deps
+    # - START SERVICES FOR FEDORA
+        if [[ "$ENV_DISTRO" == "fedora" ]]; then start_services --enable httpd php-fpm mariadb; fi
+    # - FIREWALL RULES
+        firewall_config
+    # - SECURE DATABASE
+        database_secure
+    # - PREPARE DATABASE
+        # database_prepare
+    # - INSTALL SOFTWARE (from recipes/functions)
+        # install_zabbix
+        install_snipeit
+    # - RESTART SERVICES
+        # start_services --restart
+    # - CONFIGURATIONS
 
-  return 0
+    return 0
+  fi
 
 }
 
 # RUN STUFF
-show_ascii_logo
+main
 
-install_zabbix 
-install_snipeit
+# show_ascii_logo
+# install_zabbix 
+# install_snipeit

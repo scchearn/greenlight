@@ -9,7 +9,7 @@ ITSM for FOSS project. Installs free and open-source software to manage ICT oper
 - [x] Fedora 32 :: Snipe-IT
 - [x] Ubuntu 20.04 :: Zabbix
 - [x] Ubuntu 20.04 :: Snipe-IT
-- [ ] Ubuntu 18.04 :: Zabbix
+- [x] Ubuntu 18.04 :: Zabbix
 - [x] Ubuntu 18.04 :: Snipe-IT
 
 ## Dependencies
