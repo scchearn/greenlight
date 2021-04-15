@@ -527,8 +527,8 @@ install_snipeit () {
     
     create_vhost () {
       {
-        echo "<VirtualHost *:80>"
-        echo ""
+        # echo "<VirtualHost *:80>"
+        # echo ""
         echo "  Alias /$URL_SLUG \"$APP_INSTALL_DIR/public\""
         echo ""
         echo "  <Directory $APP_INSTALL_DIR/public>"
@@ -539,9 +539,9 @@ install_snipeit () {
         echo "  </Directory>"
         echo ""
         echo "  DocumentRoot $APP_INSTALL_DIR/public"
-        echo "  ServerName $(hostname --fqdn)"
-        echo ""
-        echo "</VirtualHost>"
+        # echo "  ServerName $(hostname --fqdn)"
+        # echo ""
+        # echo "</VirtualHost>"
       } > $APACHE_CONF_LOCATION/$APP_USER.conf
     }
 
@@ -651,7 +651,9 @@ install_snipeit () {
           # set user password
           yes $ENV_PASSWORD | passwd $APP_USER > /dev/null 2>&1
           # set user group
-          usermod -aG wheel -aG $APACHE_USER $APP_USER
+          # TODO: !! Ubuntu does not have the group wheel.
+          # usermod -aG wheel -aG $APACHE_USER $APP_USER
+          usermod -aG $APACHE_USER $APP_USER
         printf "  $TICK Done.\\n"
       
       # Give some space
@@ -719,9 +721,9 @@ install_snipeit () {
         printf "  $BUSY Creating Apache VirtualHost... "
           # create apache.conf file
           create_vhost
-          # TODO: !! Ubuntu/Apache, run a2ensite.
           if [[ "$ENV_DISTRO" == "ubuntu" ]]; then
-            a2ensite $APP_USER.conf
+            a2ensite $APP_USER.conf > /dev/null 2>&1
+            a2enmod rewrite > /dev/null 2>&1
           fi
         printf "done.\\n"
 
@@ -751,10 +753,6 @@ install_snipeit () {
 
       # Give some space
       printf \\n
-
-    # elif [[ "$ENV_DISTRO" == 'ubuntu' ]]; then
-      # local APP_SERVICES="apache2 zabbix-server zabbix-agent"
-    # fi
 
     return 0
     # TODO: Print -- can only install on Fedora or Ubuntu.
@@ -794,5 +792,5 @@ main () {
 # RUN STUFF
 show_ascii_logo
 
-# install_zabbix 
+install_zabbix 
 install_snipeit
