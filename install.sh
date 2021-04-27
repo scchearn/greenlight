@@ -13,7 +13,7 @@
 
 # Check if we have root privileges
 if [[ "$(id -u)" != "0" ]]; then
-  # TODO: Make this a bit prettier with more information.
+  # TODO: Ask for root privileges instead of showing error.
   # TODO: Add comments.
   printf "$COLOUR_LIGHT_RED""Please execute his script as root or sudo\\n""$COLOUR_NC"
   exit 0
@@ -47,6 +47,7 @@ readonly ENV_DISTRO_NAME=$NAME
 readonly ENV_DISTRO_VERSION_FULL=$VERSION
 readonly ENV_DISTRO_VERSION_ID=$VERSION_ID
 readonly APP_LOG="/tmp/$APPNAME/app.log"
+readonly HOSTIP=$(hostname -I)
 
 # -e option instructs bash to exit immediately if a simple command exits with a non-zero
 # status, unless the command that fails is part of an until or while loop, part of an
@@ -121,11 +122,7 @@ unfinished_install () {
 
 # Run command as user
 run_as_user () {
-  # if ! hash sudo 2>/dev/null; then
-      su -c "$@" $APP_USER
-  # else
-      # sudo -i -u $APP_USER "$@"
-  # fi
+  su -c "$@" $APP_USER
 }
 
 # WRITE STUFF HERE
@@ -163,12 +160,22 @@ get_timezone () {
 }
 
 set_ntp () {
-  # Checks that NTP is on, using timedatectl. Many of the installation steps
+  # Checks that NTP is syncing, using 'sntp'. Many of the installation steps
   # need to have the correct time and date set. PERL modules are especially
   # sensitive to this and will fail to install.
+  
+  # Check if the 'sntp' command is installed,
   if type sntp > /dev/null 2>&1; then
-    clock_diff=$(sntp pool.ntp.org | awk -F' ' 'END{ print $4 }'| awk '{ print substr($1,2)}')
-    if (( $(echo "$clock_diff >= 128" | bc -l) )); then
+    # and then get the difference between the local clock and
+    # 'pool.ntp.org'. The difference is in seconds and
+    # displayed in either negative or positive (ahead
+    # or behind). Using some awk magic, get this value
+    # and strip the +/- symbol from the front. 
+    clock_diff=$(sntp pool.ntp.org | awk -F' ' 'END{ print $4 }'| awk '{ print substr($1,2) }')
+    # We only care if this value is more than 2m (120) either
+    # way. Use basic calculator (bc) to check this.
+    if (( $(echo "$clock_diff >= 120" | bc -l) )); then
+      # Use 'timedatectl' to essentially jump start ntp synchronisation.
       timedatectl set-ntp false
       timedatectl set-ntp true
     fi
@@ -177,7 +184,7 @@ set_ntp () {
 
 write_homepage () {
   # TODO: Change this URL to repository version when it's ready.
-  local url='https://gist.githubusercontent.com/scchearn/848c5bdd022f6c3044e53a0251dc5422/raw/greenlight.html'
+  local url='https://raw.githubusercontent.com/scchearn/greenlight/master/greenlight.html'
   local docroot='/var/www/html'
   curl -sS $url | tee $docroot/index.html > /dev/null
 }
@@ -211,9 +218,9 @@ database_prepare () {
 
 set_selinux () {
   # SELinux, generally only present on RPM based distributions, secures
-  # Linux through mandatory access control architecture patched in the 
+  # Linux through mandatory access control architecture patched into
   # the kernel. However, it interferes with the functioning of the
-  # software packages we install here, so we disable it.
+  # software packages we're installing here, so we disable it.
   if [[ "$ENV_DISTRO" == "fedora" ]]; then
     printf " $INFO SELinux\\n"
     # Check if SELinux is enforcing.
@@ -376,7 +383,9 @@ install_deps () {
     # local info=$(yes n | dnf install $packages 2>&1 | grep "Total download size" | sed "s/Total download size: \(.*\)/\1/")
     # printf " $INFO Dependencies download size: $info\\n"
     
-    yes n | dnf update > /dev/null 2>&1
+    printf " $INFO Updating package lists... "
+      yes n | dnf update > /dev/null 2>&1
+    printf "done.\\n"
 
     # Loop through the list above and install each package
     for p in $packages; do
@@ -404,20 +413,21 @@ install_deps () {
   # Ubuntu Install
   elif [[ "$ENV_DISTRO" == "ubuntu" ]]; then
     # We have to check our OS version, packages are different and some needs extra repositories.
-    if [[ "$ENV_DISTRO_VERSION_ID" == "20.04" ]]; then
-      local packages=${packages_ubuntu_20}
-    elif [[ "$ENV_DISTRO_VERSION_ID" == "18.04" ]]; then
-      local packages=${packages_ubuntu_18}
-      # Add PHP7.4 repository
-      apt -y install software-properties-common  > /dev/null 2>&1
-      add-apt-repository -y ppa:ondrej/php  > /dev/null 2>&1
-    else
-      # TODO: Print a error message here to tell the user we only support Ubuntu 18.04 and 20.04
-      printf ""
-      exit 1
-    fi
+    case $ENV_DISTRO_VERSION_ID in
+      '20.04' )
+        local packages=${packages_ubuntu_20}
+        ;;
+      '18.04' )
+        local packages=${packages_ubuntu_18}
+        # Add PHP7.4 repository for 18.04
+        apt -y install software-properties-common  > /dev/null 2>&1
+        add-apt-repository -y ppa:ondrej/php  > /dev/null 2>&1
+        ;;
+    esac
 
-    apt update > /dev/null 2>&1
+    printf " $INFO Updating package lists... "
+      apt update > /dev/null 2>&1
+    printf "done.\\n"
 
     local download_size=$(yes n | apt install $packages 2>&1 | grep "Need to get" | sed "s/Need to get \(.*\) of archives./\1/")
 
@@ -463,10 +473,8 @@ install_zabbix () {
 
   # REMOVE FOR main()
   if [[ "$ENV_DISTRO" == "fedora" && "$ENV_DISTRO_VERSION_ID" -gt "32" ]]; then
-    
     printf \\n
     echo -e " $ERROR "$COLOUR_LIGHT_PURPLE"Zabbix"$COLOUR_NC" cannot be installed on Fedora 33 at the moment."
-    
   else
 
     # Give some space
@@ -476,10 +484,11 @@ install_zabbix () {
     
     # Temporary variables for things like the install
     # directory, application user and services.
-      local APP_TMP_DIR="/tmp/$APPNAME/zabbix"
       local APP_USER="zabbix"
       local APP_NAME="Zabbix"
       local APP_VER="5.2.6"
+      local APP_TMP_DIR="/tmp/$APPNAME/zabbix"
+      local URL_SLUG_ALT="monitoring"
       case $ENV_DISTRO in
         'fedora' )
           local APP_SERVICES="zabbix-server zabbix-agent"
@@ -568,6 +577,17 @@ install_zabbix () {
         else
           printf "already loaded.\\n"
         fi
+
+        # Add alternative alias to the web server configuration file.
+        case $ENV_DISTRO in
+          'fedora' )
+            sed -E -i 's/(^Alias.+)/\1\nAlias \/'$URL_SLUG_ALT' \/usr\/share\/zabbix/' /etc/httpd/conf.d/zabbix.conf
+            ;;
+          'ubuntu' )
+            sed -E -i 's/(^.+)(Alias.+)/\1\2\n\1Alias \/'$URL_SLUG_ALT' \/usr\/share\/zabbix/' /etc/apache2/conf-available/zabbix.conf
+            ;;
+        esac
+
       printf "   $TICK Configuration complete.\\n"
 
     # Give some space
@@ -579,16 +599,9 @@ install_zabbix () {
         start_services --enable $APP_SERVICES
       printf " done, thank you.\\n\\n"
 
-  fi
-    # Give some space
-    # printf \\n
-
     # Clean up
       rm -R $APP_TMP_DIR
-  # REMOVE FOR main()
-  # else
-    # REMOVE FOR main()
-    # printf "Nothing to do\\n"
+  fi
 
 }
 
@@ -604,7 +617,7 @@ install_snipeit () {
   create_vhost () {
     {
       echo "  Alias /$URL_SLUG \"$APP_INSTALL_DIR/public\""
-      echo "  Alias /assets \"$APP_INSTALL_DIR/public\""
+      echo "  Alias /$URL_SLUG_ALT \"$APP_INSTALL_DIR/public\""
       echo ""
       echo "  <Directory $APP_INSTALL_DIR/public>"
       echo "      Allow From All"
@@ -655,6 +668,7 @@ install_snipeit () {
     local APP_USER="snipeit"
     local APP_NAME="Snipe-IT"
     local URL_SLUG="snipe-it"
+    local URL_SLUG_ALT="assets"
     case $ENV_DISTRO in
       'fedora' )
         local APP_SERVICES="httpd"
@@ -743,7 +757,6 @@ install_snipeit () {
         run_as_user "cd ~/; curl -sS https://getcomposer.org/installer | php > /dev/null 2>&1"
         # run php composer
         run_as_user "cd ~/; php composer.phar install --no-dev --prefer-source > /dev/null 2>&1"
-
       printf "done.\\n"
 
       printf "  $BUSY Populating database... "
@@ -751,7 +764,6 @@ install_snipeit () {
         run_as_user "cd ~/; yes y | php artisan key:generate > /dev/null 2>&1"
         # migrate
         run_as_user "cd ~/; yes y | php artisan migrate > /dev/null 2>&1"
-
       printf "done.\\n"
 
       printf "  $BUSY Setting permissions... "
@@ -769,11 +781,6 @@ install_snipeit () {
           a2enmod rewrite > /dev/null 2>&1
         fi
       printf "done.\\n"
-
-      # printf "  $BUSY Creating .htaccess file... "
-      #   # edit .htaccess
-      #   create_htaccess
-      # printf "done.\\n"
 
     printf " $TICK Done configuring.\\n"
 
@@ -808,13 +815,13 @@ main () {
     # - SHOW LOGO
         show_ascii_logo
         printf "$INFO Ready to install from 'main()' on $ENV_DISTRO_NAME $ENV_DISTRO_VERSION_FULL\\n\\n"
+    # - SELINUX
+        set_selinux
     # - INSTALL DEPS
         install_deps
     # - TIME AND TIMEZONE
         get_timezone
         set_ntp
-    # - SELINUX
-        set_selinux
     # - START SERVICES FOR FEDORA
         if [[ "$ENV_DISTRO" == "fedora" ]]; then start_services --enable httpd php-fpm mariadb; fi
         write_homepage
@@ -824,10 +831,13 @@ main () {
         database_secure
     # - INSTALL SOFTWARE (from recipes/functions)
         install_zabbix
-        install_snipeit
+        # install_snipeit
     # - RESTART SERVICES
         # start_services --restart
     # - CONFIGURATIONS
+    
+    # - DONE
+        printf " $TICK Access "$COLOUR_LIGHT_GREEN"greenlight"$COLOUR_NC" at "$COLOUR_LIGHT_PURPLE"http://$HOSTIP"$COLOUR_NC"\\n"
 
     return 0
   fi

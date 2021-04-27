@@ -3,10 +3,10 @@
 ITSM for FOSS project. Installs free and open-source software to manage ICT operations.
 
 ### Purpose
-This script aims not to install a system that is ready to be used out of the box. Instead, it is meant to provide a pairing of applications to use in information technology service management.
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 ## Build
-### 0.8.3:
+### 0.8.5:
 
 - [ ] Fedora 33 :: Zabbix
 - [x] Fedora 33 :: Snipe-IT
@@ -17,7 +17,7 @@ This script aims not to install a system that is ready to be used out of the box
 - [x] Ubuntu 20.04 :: Zabbix
 - [x] Ubuntu 20.04 :: Snipe-IT
 
-- [x] Ubuntu 18.04 :: Zabbix
+- [ ] Ubuntu 18.04 :: Zabbix
 - [x] Ubuntu 18.04 :: Snipe-IT
 
 ## Dependencies
