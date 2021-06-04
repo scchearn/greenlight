@@ -52,7 +52,7 @@ readonly ENV_DISTRO_NAME=$NAME
 readonly ENV_DISTRO_VERSION_FULL=$VERSION
 readonly ENV_DISTRO_VERSION_ID=$VERSION_ID
 readonly APP_LOG="/tmp/$APPNAME/app.log"
-readonly HOSTIP=$(hostname -i)
+readonly HOSTIP=$(hostname -I | awk -F ' ' '{print $1}')
 sntp_sleep_time=1
 
 # Set package manager
@@ -185,7 +185,7 @@ install_script_deps () {
 
   # Run the function inside itself, so we can show a busy spinner.
   __run () {
-    local packages='git wget unzip'
+    local packages='git wget unzip tar'
     case $ENV_DISTRO in
       'fedora' | 'ubuntu' )
         # Fedora and Ubuntu needs 'sntp'
