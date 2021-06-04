@@ -7,6 +7,18 @@
 # TODO: Remove OS checks from many of the functions. Initial os_check() should suffice.
 # TODO: Uninstaller?
 
+###################################################
+#                  GREENLIGHT                     #
+#                Install Script                   #
+#
+#
+#
+#
+#
+###################################################
+
+# curl -sS https://raw.githubusercontent.com/scchearn/greenlight/master/install.sh | sudo bash
+
 # =================================================
 #   DO THESE THINGS FIRST
 # =================================================
@@ -40,7 +52,7 @@ readonly ENV_DISTRO_NAME=$NAME
 readonly ENV_DISTRO_VERSION_FULL=$VERSION
 readonly ENV_DISTRO_VERSION_ID=$VERSION_ID
 readonly APP_LOG="/tmp/$APPNAME/app.log"
-readonly HOSTIP=$(hostname -I)
+readonly HOSTIP=$(hostname -i)
 sntp_sleep_time=1
 
 # Set package manager
@@ -201,6 +213,8 @@ install_script_deps () {
         done
         ;;
       'centos' )
+        # Install Extra Packages for Enterprise Linux (EPEL)
+        yum install -y epel-release > /dev/null 2>&1
         for p in $packages; do
           ec=$($ENV_PKGMGR list installed $p > /dev/null 2>&1;echo $?)
           # Check `$ec` for the exit code. If the package is not
