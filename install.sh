@@ -6,15 +6,14 @@
 # TODO: Tell the user afterwards all the changes that was made. Like new users and their passwords
 # TODO: Remove OS checks from many of the functions. Initial os_check() should suffice.
 # TODO: Uninstaller?
+# TODO: Logging
 
 ###################################################
 #                  GREENLIGHT                     #
 #                Install Script                   #
-#
-#
-#
-#
-#
+#                                                 #
+#        Created by Samuel Hearn as partial       #
+#         fulfilment for masters program.         #
 ###################################################
 
 # curl -sS https://raw.githubusercontent.com/scchearn/greenlight/master/install.sh | sudo bash
@@ -92,34 +91,34 @@ shopt -s nocasematch
 # ASCII Logo
 show_ascii_logo() {
   echo -e "
-╱╱╱╱╱╱╱╱╱╱╱╱╱╱$COLOUR_LIGHT_GREEN╭╮$COLOUR_NC╱╱╱╱$COLOUR_LIGHT_GREEN╭╮$COLOUR_NC╱$COLOUR_LIGHT_GREEN╭╮$COLOUR_NC
-╱╱╱╱╱╱╱╱╱╱╱╱╱╱$COLOUR_LIGHT_GREEN┃┃$COLOUR_NC╱╱╱╱$COLOUR_LIGHT_GREEN┃┃╭╯╰╮$COLOUR_NC
-$COLOUR_LIGHT_GREEN╭━━┳━┳━━┳━━┳━╮┃┃╭┳━━┫╰┻╮╭╯$COLOUR_NC
-$COLOUR_LIGHT_GREEN┃╭╮┃╭┫┃━┫┃━┫╭╮┫┃┣┫╭╮┃╭╮┃┃$COLOUR_NC
-$COLOUR_LIGHT_GREEN┃╰╯┃┃┃┃━┫┃━┫┃┃┃╰┫┃╰╯┃┃┃┃╰╮$COLOUR_NC
-$COLOUR_LIGHT_GREEN╰━╮┣╯╰━━┻━━┻╯╰┻━┻┻━╮┣╯╰┻━╯$COLOUR_NC
-$COLOUR_LIGHT_GREEN╭━╯┃$COLOUR_NC╱╱╱╱╱╱╱╱╱╱╱╱╱$COLOUR_LIGHT_GREEN╭━╯┃$COLOUR_NC
-$COLOUR_LIGHT_GREEN╰━━╯$COLOUR_NC╱╱╱╱╱╱╱╱╱╱╱╱╱$COLOUR_LIGHT_GREEN╰━━╯$COLOUR_NC
+╱╱╱╱╱╱╱╱╱╱╱╱╱╱$COLOUR_GREEN╭╮$COLOUR_NC╱╱╱╱$COLOUR_GREEN╭╮$COLOUR_NC╱$COLOUR_GREEN╭╮$COLOUR_NC
+╱╱╱╱╱╱╱╱╱╱╱╱╱╱$COLOUR_GREEN┃┃$COLOUR_NC╱╱╱╱$COLOUR_GREEN┃┃╭╯╰╮$COLOUR_NC
+$COLOUR_GREEN╭━━┳━┳━━┳━━┳━╮┃┃╭┳━━┫╰┻╮╭╯$COLOUR_NC
+$COLOUR_GREEN┃╭╮┃╭┫┃━┫┃━┫╭╮┫┃┣┫╭╮┃╭╮┃┃$COLOUR_NC
+$COLOUR_GREEN┃╰╯┃┃┃┃━┫┃━┫┃┃┃╰┫┃╰╯┃┃┃┃╰╮$COLOUR_NC
+$COLOUR_GREEN╰━╮┣╯╰━━┻━━┻╯╰┻━┻┻━╮┣╯╰┻━╯$COLOUR_NC
+$COLOUR_GREEN╭━╯┃$COLOUR_NC╱╱╱╱╱╱╱╱╱╱╱╱╱$COLOUR_GREEN╭━╯┃$COLOUR_NC
+$COLOUR_GREEN╰━━╯$COLOUR_NC╱╱╱╱╱╱╱╱╱╱╱╱╱$COLOUR_GREEN╰━━╯$COLOUR_NC
   "
 }
 
 # Set some colours we can use throughout the script.
-COLOUR_NC='\e[0m'               # No Colour
-COLOUR_LIGHT_RED='\e[1;31m'     # Red
-COLOUR_LIGHT_GREEN='\e[1;32m'   # Green
-COLOUR_LIGHT_YELLOW='\e[1;33m'  # Yellow
-COLOUR_LIGHT_PURPLE='\e[1;35m'  # Purple
+COLOUR_NC='\e[0m'         # No Colour
+COLOUR_RED='\e[1;31m'     # Red
+COLOUR_GREEN='\e[1;32m'   # Green
+COLOUR_YELLOW='\e[1;33m'  # Yellow
+COLOUR_PURPLE='\e[1;35m'  # Purple
 
 # Creates a box with a green tick [✓]
-TICK="[${COLOUR_LIGHT_GREEN}\u2713${COLOUR_NC}]"
+TICK="[${COLOUR_GREEN}\u2713${COLOUR_NC}]"
 # Creates a box with a red cross [✗]
-ERROR="[${COLOUR_LIGHT_RED}\u2717${COLOUR_NC}]"
+ERROR="[${COLOUR_RED}\u2717${COLOUR_NC}]"
 # Box with an yellow [i], for information
-INFO="[${COLOUR_LIGHT_YELLOW}i${COLOUR_NC}]"
+INFO="[${COLOUR_YELLOW}i${COLOUR_NC}]"
 # Box with an purple [?], for validation
-CHECK="[${COLOUR_LIGHT_PURPLE}\u2753${COLOUR_NC}]"
+CHECK="[${COLOUR_PURPLE}\u2753${COLOUR_NC}]"
 # Creates a box with a green dotted circle [◌]
-BUSY="[${COLOUR_LIGHT_GREEN}\u25cc${COLOUR_NC}]"
+BUSY="[${COLOUR_GREEN}\u25cc${COLOUR_NC}]"
 
 # Formatting
 F_BOLD='\033[1m'  # Bold formatting
@@ -158,7 +157,7 @@ spinner () {
 show_welcome () {
   # Show a nice welcome message.
   # TODO: !! Write notice. (Install will take over the system etc.)
-  local text="Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\\n\\nUt enim ad$COLOUR_LIGHT_GREEN minim$COLOUR_NC veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+  local text="${COLOUR_GREEN}This is Greenlight. Greenlight saves you time.\\n\\nThis script will install three free and open-source applications to create a software toolchain. The different software, when used together, is meant to provide a framework for information technology service management (ITSM).\\n\\nHopefully, using this script will save you the time and headaches of finding, installing, and testing the thousands of different software solutions out there. It's all in one place and easily accessible. Find out more at ${COLOUR_PURPLE}https://github.com/scchearn/greenlight${COLOUR_NC}"
   # Let's find the width of the terminal we're running.
   local width=$(stty size | awk 'END { print $NF }')
   # If the terminal is wider than 70 columns,
@@ -169,6 +168,7 @@ show_welcome () {
   # Display text that takes up half the screen, or not
   # depending on width.
     echo -e $text | fold -w $width -s
+    # echo -e $text | fold -w 70 -s
     echo -e ""
 }
 
@@ -246,7 +246,7 @@ unfinished_install () {
     # return 0
     echo "Unlocking, file present"
   else [[ -f /tmp/$APPNAME/app.lock ]]
-    printf "%b" \\n "$ERROR" "$COLOUR_LIGHT_YELLOW" " Unfinished install found." "$COLOUR_NC" \\n\\n
+    printf "%b" \\n "$ERROR" "$COLOUR_YELLOW" " Unfinished install found." "$COLOUR_NC" \\n\\n
     # exit 0
   fi
 }
@@ -376,23 +376,39 @@ set_ntp () {
 }
 
 write_homepage () {
-  local url='https://raw.githubusercontent.com/scchearn/greenlight/master/greenlight.html'
   local docroot='/var/www/html'
+  local url='https://raw.githubusercontent.com/scchearn/greenlight/master/greenlight.html'
   curl -sS $url | tee $docroot/index.html > /dev/null
+  sed -E -i 's/(\{PASSWD\})/'$ENV_PASSWORD'/' $docroot/index.html
+  
+  # Local
+  # cp /home/shearn/test/greenlight.html $docroot/index.html
+  # sed -E -i 's/(\{PASSWD\})/'$ENV_PASSWORD'/' $docroot/index.html
+
 }
 
 secure_database () {
   # -q, --quiet     Quiet (no output)
   # Secures a fresh install of MySQL/MariaDB.
-  if ! [[ "$@" =~ "-q" ||  "$@" =~ "--quiet" ]]; then printf "  $BUSY Securing database... "; fi
-  # Set the root mysql password and,
-  mysqladmin -u root password "$ENV_PASSWORD" > /dev/null 2>&1
-  # secure the database. Based on the mysql_secure_installation command.
-  mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')" > /dev/null 2>&1
-  mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User=''" > /dev/null 2>&1
-  mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%'" > /dev/null 2>&1
-  mysql -u root -p"$ENV_PASSWORD" -e "FLUSH PRIVILEGES" > /dev/null 2>&1
-  if ! [[ "$@" =~ "-q" || "$@" =~ "--quiet" ]]; then printf "done\\n"; fi
+  
+  # Get installation specific variables from log file.
+  source /tmp/$APPNAME/app.log
+  # Check if we've run the script before.
+  if ! [[ $greenlight_executed == true ]]; then
+    if ! [[ "$@" =~ "-q" ||  "$@" =~ "--quiet" ]]; then printf "  $BUSY Securing database... "; fi
+      # Set the root mysql password and,
+      mysqladmin -u root password "$ENV_PASSWORD" > /dev/null 2>&1
+      # secure the database. Based on the mysql_secure_installation command.
+      mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')" > /dev/null 2>&1
+      mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.user WHERE User=''" > /dev/null 2>&1
+      mysql -u root -p"$ENV_PASSWORD" -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%'" > /dev/null 2>&1
+      mysql -u root -p"$ENV_PASSWORD" -e "FLUSH PRIVILEGES" > /dev/null 2>&1
+      if ! [[ "$@" =~ "-q" || "$@" =~ "--quiet" ]]; then printf "done\\n"; fi
+      echo "${APPNAME}_executed=true" >> /tmp/$APPNAME/app.log
+  else
+    # Database already secured, we've executed script before.
+    printf "  $TICK Database secured.\\n"
+  fi
 }
 
 prepare_database () {
@@ -414,7 +430,8 @@ set_selinux () {
   if [[ "$ENV_DISTRO" == "fedora" || "$ENV_DISTRO" == "centos" ]]; then
     printf " $INFO SELinux\\n"
     # Check if SELinux is enforcing.
-    if [[ $(awk -F = -e '/^SELINUX=/ {print $2}' /etc/selinux/config) == "enforcing" ]]; then
+    # if [[ $(awk -F = -e '/^SELINUX=/ {print $2}' /etc/selinux/config) == "enforcing" ]]; then
+    if [[ $(getenforce) == "enforcing" ]]; then
       printf "  $TICK SELinux is enabled, disabling... "
       # Temporary disable SELinux with 'setenforce',
       setenforce 0
@@ -473,7 +490,7 @@ start_services () {
             echo -e " done"
           else
             # Otherwise, make it obvious that it failed.
-            echo -e "$COLOUR_LIGHT_RED failed.$COLOUR_NC"
+            echo -e "$COLOUR_RED failed.$COLOUR_NC"
           fi
         done
         ;;
@@ -488,7 +505,7 @@ start_services () {
             echo -e " done"
           else
             # Else, show us a bright red 'failed'.
-            echo -e "$COLOUR_LIGHT_RED failed.$COLOUR_NC"
+            echo -e "$COLOUR_RED failed.$COLOUR_NC"
           fi
         done
         ;;
@@ -544,8 +561,8 @@ get_org_var () {
   read -e -p "What's the email address of the administrator: " ORG_ADMIN_EMAIL
 
   printf "\\nPlease check that all the information below is correct:\\n"
-  printf " $CHECK Domain name: $COLOUR_LIGHT_GREEN$ORG_DOMAIN$COLOUR_NC\\n"
-  printf " $CHECK Administrator email: $COLOUR_LIGHT_GREEN$ORG_ADMIN_EMAIL$COLOUR_NC\\n"
+  printf " $CHECK Domain name: $COLOUR_GREEN$ORG_DOMAIN$COLOUR_NC\\n"
+  printf " $CHECK Administrator email: $COLOUR_GREEN$ORG_ADMIN_EMAIL$COLOUR_NC\\n"
   read -e -p "Is this information correct? [y/n] " reponse
   
   # Give the user a chance to check if the data is correct
@@ -611,7 +628,7 @@ install_software_deps () {
 
       # Loop through the list above and install each package
       for p in $packages; do
-        printf "  $BUSY Installing $COLOUR_LIGHT_GREEN$p$COLOUR_NC... "
+        printf "  $BUSY Installing ${COLOUR_GREEN}${p}${COLOUR_NC}... "
         # Check if the package isn't already installed.
         if dnf list installed "$p" > /dev/null 2>&1; then
           printf "already installed\\n"
@@ -622,13 +639,13 @@ install_software_deps () {
           # then check the output for information. 
           if [[ $execute =~ "no match for argument" ]]; then
             # Package not available
-            printf "can't find "$COLOUR_LIGHT_RED$p$COLOUR_NC".\\n"
+            printf "can't find "${COLOUR_RED}${p}${COLOUR_NC}".\\n"
           elif [[ $execute =~ "complete" ]]; then
             # Installed!
             printf "done\\n"
           else
             # Any errors will go here.
-            printf " $ERROR Yikes, something broke. Better investigate.\\n$COLOUR_LIGHT_YELLOW$execute$COLOUR_NC\\n\\n"
+            printf " $ERROR Yikes, something broke. Better investigate.\\n$COLOUR_YELLOW$execute$COLOUR_NC\\n\\n"
           fi
         fi
       done
@@ -679,7 +696,7 @@ install_software_deps () {
         
         for p in $packages; do
         # Loop through the list above and install each package
-          printf "  $BUSY Installing $COLOUR_LIGHT_GREEN$p$COLOUR_NC... "
+          printf "  $BUSY Installing ${COLOUR_GREEN}${p}${COLOUR_NC}... "
           # Is the package already installed.
           if dpkg -s "$p" > /dev/null 2>&1; then
             printf "already installed\\n"
@@ -690,13 +707,13 @@ install_software_deps () {
             # then check the output for information. 
             if [[ $execute =~ "unable to locate package" ]]; then
               # Package not available
-              printf "can't find "$COLOUR_LIGHT_RED$p$COLOUR_NC".\\n"
+              printf "can't find "${COLOUR_RED}${p}${COLOUR_NC}".\\n"
             elif [[ $execute =~ "newly installed" ]]; then
               # Installed!
               printf "done\\n"
             else
               # Any errors will go here.
-              printf " $ERROR Yikes, something broke. Better investigate.\\n$COLOUR_LIGHT_YELLOW$execute$COLOUR_NC\\n\\n"
+              printf " $ERROR Yikes, something broke. Better investigate.\\n$COLOUR_YELLOW$execute$COLOUR_NC\\n\\n"
             fi
           fi
         done
@@ -704,7 +721,7 @@ install_software_deps () {
   
   # If there the distribution does not match any of the above, apologise and exit.
   else
-    printf " $ERROR Sorry, can't install on this distribution. [$COLOUR_LIGHT_GREEN$NAME $VERSION$COLOUR_NC]. Exiting...\\n"
+    printf " $ERROR Sorry, can't install on this distribution. [$COLOUR_GREEN$NAME $VERSION$COLOUR_NC]. Exiting...\\n"
     exit 1
   fi
 
@@ -735,7 +752,7 @@ install_zabbix () {
     # Give some space
     printf \\n
     # let the user know we're ready
-    printf "%1s %b %b%s %s%b\\n" "" $INFO $COLOUR_LIGHT_GREEN "Installing" $APP_NAME $COLOUR_NC
+    printf "%1s %b %b%s %s%b\\n" "" $INFO $COLOUR_GREEN "Installing" $APP_NAME $COLOUR_NC
 
     # Is the application already installed?
     if ! [[ -d $APP_INSTALL_DIR ]]; then
@@ -779,7 +796,7 @@ install_zabbix () {
           apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-agent > /dev/null 2>&1
           printf "done\\n"
           # Set time zone information in /etc/zabbix/apache.conf file.
-          printf "   $INFO Setting installation time zone to: $COLOUR_LIGHT_PURPLE$ENV_TIMEZONE$COLOUR_NC\\n"
+          printf "   $INFO Setting installation time zone to: $COLOUR_PURPLE$ENV_TIMEZONE$COLOUR_NC\\n"
           sed -E -i 's/(^.*)(# php_value date.timezone).*/\1php_value date.timezone '$(echo $ENV_TIMEZONE | sed 's/\//\\\//g')'/' /etc/zabbix/apache.conf
         fi
     # done
@@ -788,7 +805,7 @@ install_zabbix () {
       # Secure the database,
       printf "  $INFO Preparing database...\\n"
         prepare_database
-        printf "   $TICK$F_BOLD Database password [keep it in a safe place]$F_END: $COLOUR_LIGHT_PURPLE$ENV_PASSWORD$COLOUR_NC\\n"
+        # printf "   $TICK$F_BOLD Database password [keep it in a safe place]$F_END: $COLOUR_PURPLE$ENV_PASSWORD$COLOUR_NC\\n"
       printf "   $TICK Done preparing database.\\n"
     # done
 
@@ -880,7 +897,7 @@ install_snipeit () {
   # Give some space
   printf \\n
   # let the user know we're ready
-  printf "%1s %b %b%s %s%b\\n" "" $INFO $COLOUR_LIGHT_GREEN "Installing" $APP_NAME $COLOUR_NC
+  printf "%1s %b %b%s %s%b\\n" "" $INFO $COLOUR_GREEN "Installing" $APP_NAME $COLOUR_NC
   
   # Is the application already installed?
   if ! [[ -d $APP_INSTALL_DIR ]]; then
@@ -898,12 +915,12 @@ install_snipeit () {
         'fedora' | 'centos' )
           # TODO: Test the below 'adduser' command.
           # adduser --system --user-group --shell /bin/bash --home-dir $APP_INSTALL_DIR $APP_USER > /dev/null 2>&1
-          printf "   $BUSY Adding user [$COLOUR_LIGHT_YELLOW$APP_USER$COLOUR_NC]... "
+          printf "   $BUSY Adding user [${COLOUR_YELLOW}${APP_USER}${COLOUR_NC}]... "
             adduser --home-dir $APP_INSTALL_DIR $APP_USER > /dev/null 2>&1
           printf "done\\n"
           ;;
         'ubuntu' )
-          printf "   $BUSY Adding user [$COLOUR_LIGHT_YELLOW$APP_USER$COLOUR_NC]... "
+          printf "   $BUSY Adding user [${COLOUR_YELLOW}${APP_USER}${COLOUR_NC}]... "
             adduser --quiet --gecos \"\" --home $APP_INSTALL_DIR --disabled-password $APP_USER > /dev/null 2>&1
           printf "done\\n"
           ;;
@@ -1037,7 +1054,7 @@ install_glpi () {
   # Give some space
   printf \\n
   # Let the user know we're ready
-  printf "%1s %b %b%s %s%b\\n" "" $INFO $COLOUR_LIGHT_GREEN "Installing" $APP_NAME $COLOUR_NC
+  printf "%1s %b %b%s %s%b\\n" "" $INFO $COLOUR_GREEN "Installing" $APP_NAME $COLOUR_NC
   
   # Is the application already installed?
   if ! [[ -d $APP_INSTALL_DIR ]]; then
@@ -1049,12 +1066,12 @@ install_glpi () {
         'fedora' | 'centos' )
           # TODO: Test the below 'adduser' command.
           # adduser --system --user-group --shell /bin/bash --home-dir $APP_INSTALL_DIR $APP_USER > /dev/null 2>&1
-          printf "  $BUSY Adding user [$COLOUR_LIGHT_YELLOW$APP_USER$COLOUR_NC]... "
+          printf "  $BUSY Adding user [${COLOUR_YELLOW}${APP_USER}${COLOUR_NC}]... "
             adduser --home-dir $APP_INSTALL_DIR $APP_USER > /dev/null 2>&1
           printf "done\\n"
           ;;
         'ubuntu' )
-          printf "  $BUSY Adding user [$COLOUR_LIGHT_YELLOW$APP_USER$COLOUR_NC]... "
+          printf "  $BUSY Adding user [${COLOUR_YELLOW}${APP_USER}${COLOUR_NC}]... "
             adduser --quiet --gecos \"\" --home $APP_INSTALL_DIR --disabled-password $APP_USER > /dev/null 2>&1
           printf "done\\n"
           ;;
@@ -1111,6 +1128,9 @@ install_glpi () {
     start_services --restart $APP_SERVICES
   # done
   
+  # Clean up
+    rm -R $APP_TMP_DIR
+  
   else
     printf "   $TICK Already installed\\n"
   fi
@@ -1125,13 +1145,14 @@ main () {
       clear
   # - SHOW LOGO AND WELCOME
       show_ascii_logo
-      # show_welcome
+      show_welcome
   # - CHECK PRIVILEGES AND SUPPORTED OS
       check_privileges
       check_os
   # - INSTALL SCRIPT DEPENDENCIES
       install_script_deps
-      printf "$INFO Ready to install from 'main()' on $ENV_DISTRO_NAME $ENV_DISTRO_VERSION_FULL\\n\\n"
+      # TODO: !! Need a new message here.
+      # printf "$INFO Ready to install from 'main()' on $ENV_DISTRO_NAME $ENV_DISTRO_VERSION_FULL\\n\\n"
   # - SELINUX
       set_selinux
   # - TIME AND TIMEZONE
@@ -1151,10 +1172,8 @@ main () {
       install_glpi
       install_zabbix
       install_snipeit
-  # - CLEAN UP
-      # clean_up
   # - DONE
-      printf "\\n $TICK Access "$COLOUR_LIGHT_GREEN"greenlight"$COLOUR_NC" at "$COLOUR_LIGHT_PURPLE"http://$HOSTIP"$COLOUR_NC"\\n\\n"
+      printf "\\n $TICK Access ${COLOUR_GREEN}${APPNAME}${COLOUR_NC} at ${COLOUR_PURPLE}http://${HOSTIP}${COLOUR_NC}\\n\\n"
 
   }
 
