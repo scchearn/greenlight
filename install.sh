@@ -158,17 +158,22 @@ show_welcome () {
   # Show a nice welcome message.
   # TODO: !! Write notice. (Install will take over the system etc.)
   local text="${COLOUR_GREEN}This is Greenlight. Greenlight saves you time.\\n\\nThis script will install three free and open-source applications to create a software toolchain. The different software, when used together, is meant to provide a framework for information technology service management (ITSM).\\n\\nHopefully, using this script will save you the time and headaches of finding, installing, and testing the thousands of different software solutions out there. It's all in one place and easily accessible. Find out more at ${COLOUR_PURPLE}https://github.com/scchearn/greenlight${COLOUR_NC}"
-  # Let's find the width of the terminal we're running.
-  local width=$(stty size | awk 'END { print $NF }')
-  # If the terminal is wider than 70 columns,
-  if [[ $width -ge 70 ]]; then
-    # divide the width by two.
-    width=$(( width / 2 ))
+  # Check if we're running a shell.
+  if ! [[ -z $(stty size) ]]; then
+    # Let's find the width of the terminal we're running.
+    width=$(stty size | awk 'END { print $NF }')
+    # If the terminal is wider than 80 columns,
+    if [[ $width -ge 80 ]]; then
+      # divide the width by two.
+      width=$(( width / 2 ))
+    fi
+  else
+    # If we don't know the shell's width, set it to 80.
+    width="80"
   fi
   # Display text that takes up half the screen, or not
   # depending on width.
     echo -e $text | fold -w $width -s
-    # echo -e $text | fold -w 70 -s
     echo -e ""
 }
 
