@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 
+<!-- <meta http-equiv="refresh" content="1" > -->
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.3/katex.min.css" integrity="sha512-j3Y0TJLzsVaZJ0duMfC+JTiY8alAIy6ElMsJJA5It6h4tVA22wSg5EeAhmvosZvYFSgE0zsFr9SQMykhMV/ixw==" crossorigin="anonymous" />
 
 
@@ -131,6 +133,7 @@ h4 {
 /*font-size: 1.6rem;*/
 font-size: 2.2rem;
 font-weight: bold;
+color: #80aa1a;
 }
 h5, h6 {
 font-size: 2.0rem;
@@ -492,11 +495,22 @@ color: #32373F;
 .joplin-checklist li:not(.checked)::before {
 content:"\f0c8";
 }
-.mermaid { background-color: white; width: 640px; }</style>
+.mermaid { background-color: white; width: 640px; }
+
+#this-is-greenlight {
+  font-family: 'JetBrains Mono';
+  /*font-size: 1em;*/
+  text-align: center;
+  margin: 2em 4em !important;
+  color: #FFF;
+  text-shadow: 0px 0px 4px #8898a4;
+}
+
+</style>
 
 
-<div id="rendered-md"><h2 id="this-is-greenlight">This is greenlight...</h2>
-<p>What does greenlight do? Well, simply put it saves time.</p>
+<div id="rendered-md">
+  <h2 id="this-is-greenlight">This is greenlight... <br> What does greenlight do? It saves you time.</h2>
 <h4 id="password">Password</h4>
 <p><code class="inline-code">{PASSWD}</code></p>
 <h3 id="glpi">GLPi</h3>

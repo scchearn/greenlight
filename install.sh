@@ -16,7 +16,7 @@
 #         fulfilment for masters program.         #
 ###################################################
 
-# curl -sS https://raw.githubusercontent.com/scchearn/greenlight/master/install.sh | sudo bash
+# curl -sSL https://raw.githubusercontent.com/scchearn/greenlight/master/install.sh | sudo bash
 
 # =================================================
 #   DO THESE THINGS FIRST
@@ -157,9 +157,9 @@ spinner () {
 show_welcome () {
   # Show a nice welcome message.
   # TODO: !! Write notice. (Install will take over the system etc.)
-  local text="${COLOUR_GREEN}This is Greenlight. Greenlight saves you time.\\n\\nThis script will install three free and open-source applications to create a software toolchain. The different software, when used together, is meant to provide a framework for information technology service management (ITSM).\\n\\nHopefully, using this script will save you the time and headaches of finding, installing, and testing the thousands of different software solutions out there. It's all in one place and easily accessible. Find out more at ${COLOUR_PURPLE}https://github.com/scchearn/greenlight${COLOUR_NC}"
+  local text="${COLOUR_GREEN}This is Greenlight. Greenlight saves you time.\\n\\nThis script will install three free and open-source applications to create a software toolchain. The different software, when used together, is meant to provide a framework for information technology service management (ITSM).\\n\\nHopefully, using this script will save you the time and headaches of finding, installing, and testing the thousands of different software solutions out there. It's all in one place and easily accessible. Find out more at ${COLOUR_PURPLE}https://github.com/scchearn/greenlight\\n\\n${COLOUR_YELLOW}Note: ${COLOUR_GREEN}Although this script installs applications in directories reserved for software packages and uses temporary folders, it is not made to avoid breaking production servers. It is, therefore, better to run this script on a fresh installation.${COLOUR_NC}"
   # Check if we're running a shell.
-  if ! [[ -z $(stty size) ]]; then
+  if ! [[ -z $(stty size > /dev/null 2>&1) ]]; then
     # Let's find the width of the terminal we're running.
     width=$(stty size | awk 'END { print $NF }')
     # If the terminal is wider than 80 columns,
@@ -381,15 +381,11 @@ set_ntp () {
 }
 
 write_homepage () {
+  # Writes a welcome page at Apache document root.
   local docroot='/var/www/html'
   local url='https://raw.githubusercontent.com/scchearn/greenlight/master/greenlight.html'
   curl -sS $url | tee $docroot/index.html > /dev/null
   sed -E -i 's/(\{PASSWD\})/'$ENV_PASSWORD'/' $docroot/index.html
-  
-  # Local
-  # cp /home/shearn/test/greenlight.html $docroot/index.html
-  # sed -E -i 's/(\{PASSWD\})/'$ENV_PASSWORD'/' $docroot/index.html
-
 }
 
 secure_database () {
@@ -918,8 +914,6 @@ install_snipeit () {
       # add user
       case $ENV_DISTRO in
         'fedora' | 'centos' )
-          # TODO: Test the below 'adduser' command.
-          # adduser --system --user-group --shell /bin/bash --home-dir $APP_INSTALL_DIR $APP_USER > /dev/null 2>&1
           printf "   $BUSY Adding user [${COLOUR_YELLOW}${APP_USER}${COLOUR_NC}]... "
             adduser --home-dir $APP_INSTALL_DIR $APP_USER > /dev/null 2>&1
           printf "done\\n"
@@ -977,8 +971,6 @@ install_snipeit () {
         # run php composer
         run_as_user "cd ~/; php composer.phar install --no-dev --prefer-source > /dev/null 2>&1" &
         spinner
-        # run_as_user "cd ~/; php composer.phar install --no-dev --prefer-source"
-      # printf "done\\n"
 
       printf "   $BUSY Populating database... "
         # generate APP_KEY
@@ -1069,8 +1061,6 @@ install_glpi () {
       # add user
       case $ENV_DISTRO in
         'fedora' | 'centos' )
-          # TODO: Test the below 'adduser' command.
-          # adduser --system --user-group --shell /bin/bash --home-dir $APP_INSTALL_DIR $APP_USER > /dev/null 2>&1
           printf "  $BUSY Adding user [${COLOUR_YELLOW}${APP_USER}${COLOUR_NC}]... "
             adduser --home-dir $APP_INSTALL_DIR $APP_USER > /dev/null 2>&1
           printf "done\\n"
@@ -1100,7 +1090,6 @@ install_glpi () {
         tar -xf $APP_TMP_DIR/glpi-$APP_VER.tgz -C $APP_INSTALL_ROOT
         chown -R $APACHE_USER:$APACHE_USER $APP_INSTALL_DIR
       printf "done\\n"
-    # printf " $TICK Done downloading and installing.\\n"
   # done
 
   # Prepare database
@@ -1114,9 +1103,6 @@ install_glpi () {
       mysql -u root -p"$ENV_PASSWORD" -e "GRANT ALL PRIVILEGES ON mysql.time_zone_name TO $APP_USER@localhost" > /dev/null 2>&1
     printf "done\\n"
   # done
-  
-  # Built in console. Use to automate even more of the installation.
-  # sudo php bin/console db:install --db-host=localhost --db-name=$APP_USER --db-user=$APP_USER --db-password=$ENV_PASSWORD
 
   # Create virtual host 
     printf "  $BUSY Creating site configuration... "
@@ -1149,34 +1135,32 @@ main () {
   
       clear
   # - SHOW LOGO AND WELCOME
-      show_ascii_logo
-      show_welcome
+        show_ascii_logo
+        show_welcome
   # - CHECK PRIVILEGES AND SUPPORTED OS
-      check_privileges
-      check_os
+        check_privileges
+        check_os
   # - INSTALL SCRIPT DEPENDENCIES
-      install_script_deps
-      # TODO: !! Need a new message here.
-      # printf "$INFO Ready to install from 'main()' on $ENV_DISTRO_NAME $ENV_DISTRO_VERSION_FULL\\n\\n"
+        install_script_deps
   # - SELINUX
-      set_selinux
+        set_selinux
   # - TIME AND TIMEZONE
-      get_timezone
-      set_ntp
+        get_timezone
+        set_ntp
   # - INSTALL SOFTWARE DEPENDENCIES
-      install_software_deps
+        install_software_deps
   # - START SERVICES FOR FEDORA (dependency cycle)
-      if [[ "$ENV_DISTRO" == "fedora" || "$ENV_DISTRO" == "centos" ]]; then start_services --enable httpd php-fpm mariadb; fi
+        if [[ "$ENV_DISTRO" == "fedora" || "$ENV_DISTRO" == "centos" ]]; then start_services --enable httpd php-fpm mariadb; fi
   # - FIREWALL RULES
-      write_homepage
+        write_homepage
   # - FIREWALL RULES
-      config_firewall
+        config_firewall
   # - SECURE DATABASE
-      secure_database
+        secure_database
   # - INSTALL SOFTWARE (from recipes/functions)
-      install_glpi
-      install_zabbix
-      install_snipeit
+        install_glpi
+        install_zabbix
+        install_snipeit
   # - DONE
       printf "\\n $TICK Access ${COLOUR_GREEN}${APPNAME}${COLOUR_NC} at ${COLOUR_PURPLE}http://${HOSTIP}${COLOUR_NC}\\n\\n"
 
