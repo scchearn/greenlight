@@ -67,16 +67,15 @@ case $ENV_DISTRO in
     ;;
 esac
 
-# -e option instructs bash to exit immediately if a simple command exits
-# with a non-zero status, unless the command that fails is part of
-# an until or while loop, part of an if statement, part of a &&
-# or || list, or if the command's return status
-# is being inverted using !.  -o errexit
-# set -e
+# -e option instructs bash to exit immediately if a simple command
+#  exits with a non-zero status, unless the command that fails is
+#  part of an until or while loop, part of an if statement, part of
+#  a && or || list, or if the command's return status is being
+#  inverted using !.  -o errexit
+#  set -e
 
-# -e option instructs bash to print a trace of simple commands
-# and their arguments after they are expanded and before
-# they are executed. -o xtrace
+# -e option instructs bash to print a trace of simple commands and their
+#  arguments after they are expanded and before they are executed. -o xtrace
 # set -x
 
 # Bash matches patterns in a case-insensitive fashion when
@@ -156,7 +155,6 @@ spinner () {
 
 show_welcome () {
   # Show a nice welcome message.
-  # TODO: !! Write notice. (Install will take over the system etc.)
   local text="${COLOUR_GREEN}This is Greenlight. Greenlight saves you time.\\n\\nThis script will install three free and open-source applications to create a software toolchain. The different software, when used together, is meant to provide a framework for information technology service management (ITSM).\\n\\nHopefully, using this script will save you the time and headaches of finding, installing, and testing the thousands of different software solutions out there. It's all in one place and easily accessible. Find out more at ${COLOUR_PURPLE}https://github.com/scchearn/greenlight\\n\\n${COLOUR_YELLOW}Note: ${COLOUR_GREEN}Although this script installs applications in directories reserved for software packages and uses temporary folders, it is not made to avoid breaking production servers. It is, therefore, better to run this script on a fresh installation.${COLOUR_NC}"
   # Check if we're running a shell.
   if ! [[ -z $(stty size > /dev/null 2>&1) ]]; then
@@ -386,6 +384,13 @@ write_homepage () {
   local url='https://raw.githubusercontent.com/scchearn/greenlight/master/greenlight.html'
   curl -sS $url | tee $docroot/index.html > /dev/null
   sed -E -i 's/(\{PASSWD\})/'$ENV_PASSWORD'/' $docroot/index.html
+
+  # Gzipped
+  # local url='https://raw.githubusercontent.com/scchearn/greenlight/master/greenlight.html.gz'
+  # wget -q -nc -P /tmp/$APPNAME/ $url
+  # gunzip /tmp/$APPNAME/greenlight.html.gz
+  # mv /tmp/$APPNAME/greenlight.html $docroot/index.html
+  # sed -E -i 's/(\{PASSWD\})/'$ENV_PASSWORD'/' $docroot/index.html
 }
 
 secure_database () {
