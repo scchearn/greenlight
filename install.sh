@@ -1,6 +1,18 @@
 #!/bin/bash
 
-# TODO: Add app information here.
+###################################################
+#                  GREENLIGHT                     #
+#                Install Script                   #
+#                                                 #
+#        Created by Samuel Hearn as partial       #
+#         fulfilment for masters program.         #
+#            s.hearn@liverpool.ac.uk              #
+#                                                 #
+#         Feel free to modify and use.            #
+#        The script is provided "as is",          #
+#         without warranty of any kind,           #
+#              express or implied.                #
+###################################################
 
 # Some things to remember
 # TODO: Tell the user afterwards all the changes that was made. Like new users and their passwords
@@ -8,18 +20,11 @@
 # TODO: Uninstaller?
 # TODO: Logging
 
-###################################################
-#                  GREENLIGHT                     #
-#                Install Script                   #
-#                                                 #
-#        Created by Samuel Hearn as partial       #
-#         fulfilment for masters program.         #
-###################################################
-
+# Install with this command:
 # curl -sSL https://raw.githubusercontent.com/scchearn/greenlight/master/install.sh | sudo bash
 
 # =================================================
-#   DO THESE THINGS FIRST
+#   INITIAL
 # =================================================
 
 # This is the name of the app, set it as a variable.
@@ -72,7 +77,7 @@ esac
 #  part of an until or while loop, part of an if statement, part of
 #  a && or || list, or if the command's return status is being
 #  inverted using !.  -o errexit
-#  set -e
+# set -e
 
 # -e option instructs bash to print a trace of simple commands and their
 #  arguments after they are expanded and before they are executed. -o xtrace
@@ -740,9 +745,10 @@ install_zabbix () {
     # directory, application user and services.
       local APP_USER="zabbix"
       local APP_NAME="Zabbix"
-      local APP_VER="5.2.6"
+      local APP_MAJOR_VER="5.4"
+      local APP_MINOR_VER="5.4.1"
       local APP_TMP_DIR="/tmp/$APPNAME/zabbix"
-      local APP_INSTALL_DIR="/usr/share/zabbix/" # Only used for error checking.
+      local APP_INSTALL_DIR="/usr/share/zabbix/" # Only used for error checking, has no affect on installation.
       local URL_SLUG_ALT="monitoring"
       case $ENV_DISTRO in
         'fedora' | 'centos' )
@@ -769,7 +775,7 @@ install_zabbix () {
         if [[ "$ENV_DISTRO" == "fedora" || "$ENV_DISTRO" == "centos" ]]; then
           printf "   $BUSY Downloading... "
           # Wget the install files from the Zabbix repository.
-          wget -q -nc -P $APP_TMP_DIR https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-agent-$APP_VER-1.el8.x86_64.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-apache-conf-$APP_VER-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-server-mysql-$APP_VER-1.el8.x86_64.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-mysql-$APP_VER-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-deps-$APP_VER-1.el8.noarch.rpm https://repo.zabbix.com/zabbix/5.2/rhel/8/x86_64/zabbix-web-$APP_VER-1.el8.noarch.rpm
+          wget -q -nc -P $APP_TMP_DIR "https://repo.zabbix.com/zabbix/${APP_MAJOR_VER}/rhel/8/x86_64/zabbix-agent-${APP_MINOR_VER}-1.el8.x86_64.rpm" "https://repo.zabbix.com/zabbix/${APP_MAJOR_VER}/rhel/8/x86_64/zabbix-apache-conf-${APP_MINOR_VER}-1.el8.noarch.rpm" "https://repo.zabbix.com/zabbix/${APP_MAJOR_VER}/rhel/8/x86_64/zabbix-server-mysql-${APP_MINOR_VER}-1.el8.x86_64.rpm" "https://repo.zabbix.com/zabbix/${APP_MAJOR_VER}/rhel/8/x86_64/zabbix-web-mysql-${APP_MINOR_VER}-1.el8.noarch.rpm" "https://repo.zabbix.com/zabbix/${APP_MAJOR_VER}/rhel/8/x86_64/zabbix-web-deps-${APP_MINOR_VER}-1.el8.noarch.rpm" "https://repo.zabbix.com/zabbix/${APP_MAJOR_VER}/rhel/8/x86_64/zabbix-web-${APP_MINOR_VER}-1.el8.noarch.rpm" "https://repo.zabbix.com/zabbix/${APP_MAJOR_VER}/rhel/8/x86_64/zabbix-sql-scripts-${APP_MINOR_VER}-1.el8.noarch.rpm"
           printf "done\\n"
           printf "   $BUSY Installing...\\n"
           # Import the GPG key from Zabbix 
@@ -780,7 +786,7 @@ install_zabbix () {
       # for Ubuntu
         if [[ "$ENV_DISTRO" == "ubuntu" ]]; then
           # Get the deb package from the Zabbix repo
-          local url='https://repo.zabbix.com/zabbix/5.2/ubuntu/pool/main/z/zabbix-release/zabbix-release_5.2-1+ubuntu'$ENV_DISTRO_VERSION_ID'_all.deb'
+          local url="https://repo.zabbix.com/zabbix/${APP_MAJOR_VER}/ubuntu/pool/main/z/zabbix-release/zabbix-release_${APP_MAJOR_VER}-1+ubuntu${ENV_DISTRO_VERSION_ID}_all.deb"
           printf "   $BUSY Downloading... "
           local wgetResult=$(wget -v -nc -P $APP_TMP_DIR $url 2>&1; echo $?)
           local wgetExitCode="${wgetResult##*$'\n'}"
@@ -799,7 +805,7 @@ install_zabbix () {
               exit 1
             fi
           apt update -y > /dev/null 2>&1
-          apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-agent > /dev/null 2>&1
+          apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-agent zabbix-sql-scripts > /dev/null 2>&1
           printf "done\\n"
           # Set time zone information in /etc/zabbix/apache.conf file.
           printf "   $INFO Setting installation time zone to: $COLOUR_PURPLE$ENV_TIMEZONE$COLOUR_NC\\n"
@@ -826,9 +832,9 @@ install_zabbix () {
     # Load Zabbix schema from file
       printf "   $BUSY Loading Zabbix DB schema (this might take a while)... "
       # Check if the schema file exists,
-      if [[ -f /usr/share/doc/zabbix-server-mysql/create.sql.gz ]]; then
+      if [[ -f /usr/share/doc/zabbix-sql-scripts/mysql/create.sql.gz ]]; then
         # and pipe the contents to MySQL.
-        zcat /usr/share/doc/zabbix-server-mysql/create.sql.gz | mysql -u zabbix -D zabbix -p"$ENV_PASSWORD" > /dev/null 2>&1
+        zcat /usr/share/doc/zabbix-sql-scripts/mysql/create.sql.gz | mysql -u zabbix -D zabbix -p"$ENV_PASSWORD" > /dev/null 2>&1
         printf "done\\n"
       else
         printf "already loaded.\\n"
@@ -864,6 +870,7 @@ install_zabbix () {
 
 install_snipeit () {
   # Snipe-IT recipe
+  # Downloads and installs the latest version.
 
   create_host () {
     {
