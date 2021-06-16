@@ -388,16 +388,13 @@ set_ntp () {
 write_homepage () {
   # Writes a welcome page at Apache document root.
   local docroot='/var/www/html'
-  local url='https://raw.githubusercontent.com/scchearn/greenlight/master/greenlight.html'
-  curl -sS $url | tee $docroot/index.html > /dev/null
-  sed -E -i 's/(\{PASSWD\})/'$ENV_PASSWORD'/' $docroot/index.html
 
   # Gzipped
-  # local url='https://raw.githubusercontent.com/scchearn/greenlight/master/greenlight.html.gz'
-  # wget -q -nc -P /tmp/$APPNAME/ $url
-  # gunzip /tmp/$APPNAME/greenlight.html.gz
-  # mv /tmp/$APPNAME/greenlight.html $docroot/index.html
-  # sed -E -i 's/(\{PASSWD\})/'$ENV_PASSWORD'/' $docroot/index.html
+  local url='https://github.com/scchearn/greenlight/raw/master/greenlight.html.gz'
+  wget -q -nc -P /tmp/$APPNAME/ $url
+  gunzip /tmp/$APPNAME/greenlight.html.gz
+  mv /tmp/$APPNAME/greenlight.html $docroot/index.html
+  sed -E -i 's/(\{PASSWD\})/'$ENV_PASSWORD'/' $docroot/index.html
 }
 
 secure_database () {
