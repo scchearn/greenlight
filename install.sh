@@ -313,6 +313,8 @@ check_os () {
       exit
       ;;
   esac
+  printf "$TICK Checking OS... "
+  printf "${COLOUR_GREEN}${ENV_DISTRO_NAME} ${ENV_DISTRO_VERSION_FULL}${COLOUR_NC} is supported.\\n"
 }
 
 get_timezone () {
