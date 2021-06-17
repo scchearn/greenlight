@@ -29,7 +29,7 @@ sudo bash install.sh
 ```
 
 ### Latest Stable Build
-**0.8.17**
+**0.9.0**
 
 |OS                |GLPi   |Zabbix    |Snipe-IT   |
 |------------------|:-----:|:--------:|:---------:|

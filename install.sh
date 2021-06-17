@@ -816,7 +816,6 @@ install_zabbix () {
       # Secure the database,
       printf "  $INFO Preparing database...\\n"
         prepare_database
-        # printf "   $TICK$F_BOLD Database password [keep it in a safe place]$F_END: $COLOUR_PURPLE$ENV_PASSWORD$COLOUR_NC\\n"
       printf "   $TICK Done preparing database.\\n"
     # done
 
@@ -945,20 +944,19 @@ install_snipeit () {
   
   # Download and install Snipe-IT
     printf "  $INFO Downloading and installing Snipe-IT...\\n"
-      
       printf "   $BUSY Downloading Snipe-IT... "
-        # git clone
+        # Clone repository from Github.
         git clone https://github.com/snipe/snipe-it $APP_TMP_DIR > /dev/null 2>&1
       printf "done\\n"
 
       printf "   $BUSY Moving files... "
-        # move files
         # Set shell option 'dotglod' to move hidden (dot files) files.
         shopt -s dotglob
         mv $APP_TMP_DIR/* $APP_INSTALL_DIR 
         shopt -u dotglob
+        # Remove unnecessary scripts.
         rm $APP_INSTALL_DIR/{install,snipeit}.sh
-        # change ownership
+        # Change ownership of install directory.
         chown -R $APP_USER:$APACHE_USER $APP_INSTALL_DIR
       printf "done\\n"
   # done
@@ -967,9 +965,9 @@ install_snipeit () {
     printf "  $INFO Configuring ... \\n"
       
       printf "   $BUSY Configuring .env file... "
-        # cp .env.example .env
+        # Copy configuration file as user,
         run_as_user "cd ~/; cp .env.example .env"
-        # set config file options
+        # and then set config file options.
         sed -E -i "s/(^APP_TIMEZONE=)(.*)/\1'"$(echo $ENV_TIMEZONE | sed 's/\//\\\//g')"'/" $APP_INSTALL_DIR/.env
         sed -E -i "s/(^DB_DATABASE=)(.*)/\1$APP_USER/" $APP_INSTALL_DIR/.env
         sed -E -i "s/(^DB_USERNAME=)(.*)/\1$APP_USER/" $APP_INSTALL_DIR/.env
@@ -977,29 +975,30 @@ install_snipeit () {
       printf "done\\n"
 
       printf "   $BUSY Running PHP Composer (this will take a while, grab a coffee while you wait)... "
-        # get php composer
+        # Get PHP composer as user and
         run_as_user "cd ~/; curl -sS https://getcomposer.org/installer | php > /dev/null 2>&1"
-        # run php composer
+        # and install all the PHP dependencies.
         run_as_user "cd ~/; php composer.phar install --no-dev --prefer-source > /dev/null 2>&1" &
         spinner
 
       printf "   $BUSY Populating database... "
-        # generate APP_KEY
+        # Use PHP Artisan to generate an API key,
         run_as_user "cd ~/; yes y 2>/dev/null | php artisan key:generate > /dev/null 2>&1"
-        # migrate
+        # and then migrate the database.
         run_as_user "cd ~/; yes y 2>/dev/null | php artisan migrate > /dev/null 2>&1"
       printf "done\\n"
 
       printf "   $BUSY Setting permissions... "
-        # change ownership
+        # Set the proper permissions and change owner of some folders.
         chmod -R 755 $APP_INSTALL_DIR/storage
         chmod -R 755 $APP_INSTALL_DIR/public/uploads
         chown -R $APACHE_USER $APP_INSTALL_DIR/{storage,vendor,public}
       printf "done\\n"
       
-      # Create virtual host file
       printf "   $BUSY Creating site configuration... "
+      # Create virtual host file
         create_host
+        # If we're running on Ubuntu, enable the site and rewrite mod.
         if [[ "$ENV_DISTRO" == "ubuntu" ]]; then
           a2ensite $APP_USER.conf > /dev/null 2>&1
           a2enmod rewrite > /dev/null 2>&1
@@ -1007,7 +1006,7 @@ install_snipeit () {
       printf "done\\n"
   # done
   
-  # Start and/or restart services
+  # Restart services
     printf "   $INFO Starting services...\\n"
       start_services --restart $APP_SERVICES
   # done
