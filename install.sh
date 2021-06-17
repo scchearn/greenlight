@@ -27,6 +27,8 @@
 #   INITIAL
 # =================================================
 
+# Make sure language is set to UTF-8
+LANG=en_US.UTF-8
 # This is the name of the app, set it as a variable.
 readonly APPNAME="greenlight"
 # Make a directory for files to go.
