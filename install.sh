@@ -242,32 +242,9 @@ install_script_deps () {
 
 }
 
-unfinished_install () { 
-  # Check for aborted or failed installations
-  # TODO: Tell the user how to restore an unfinished install
-  if [[ $@ == "lock" && -f !/tmp/$APPNAME/app.lock ]]; then
-    # touch /tmp/$APPNAME/app.lock
-    # return 0
-    echo "Locking with file not present"
-  elif [[ $@ == "unlock" && -f /tmp/$APPNAME/app.lock ]]; then
-    # rm /tmp/$APPNAME/app.lock
-    # return 0
-    echo "Unlocking, file present"
-  else [[ -f /tmp/$APPNAME/app.lock ]]
-    printf "%b" \\n "$ERROR" "$COLOUR_YELLOW" " Unfinished install found." "$COLOUR_NC" \\n\\n
-    # exit 0
-  fi
-}
-
 run_as_user () {
   # Run command as user
   su -c "$@" $APP_USER
-}
-
-# WRITE STUFF HERE
-# #########################################################
-execute_and_log () {
-  eval "$@" | tee -a $APP_LOG
 }
 
 check_privileges () {
@@ -562,40 +539,6 @@ check_dpkg_lock () {
     done
     printf "done\\n"
   fi
-}
-
-# VARIABLES
-# Get some important information
-get_org_var () {
-  read -e -p "What is your domain name: " ORG_DOMAIN
-  read -e -p "What's the email address of the administrator: " ORG_ADMIN_EMAIL
-
-  printf "\\nPlease check that all the information below is correct:\\n"
-  printf " $CHECK Domain name: $COLOUR_GREEN$ORG_DOMAIN$COLOUR_NC\\n"
-  printf " $CHECK Administrator email: $COLOUR_GREEN$ORG_ADMIN_EMAIL$COLOUR_NC\\n"
-  read -e -p "Is this information correct? [y/n] " reponse
-  
-  # Give the user a chance to check if the data is correct
-  if [[ "$reponse" != [yY] ]]; then
-    # if not, ask again
-    get_org_var
-  else
-    printf " $TICK Cool, continuing...\\n"
-  fi
-}
-
-# Get information about the environment 
-get_env_var () {
-  printf "Choose a password that will be used across all systems\\n"
-  printf "Password:\\n"
-  read -s ORG_ENV_PASSWORD
-  if [[ -z "$ORG_ENV_PASSWORD" ]]; then
-    printf " $ERROR"" Oops, it looks like you didn't enter a password.\\n That's okay, lets try again:\\n"
-    # get_env_var
-    printf "Password:\\n"
-    read -s ORG_ENV_PASSWORD
-  fi
-  printf " $TICK Got it, moving on...\\n"
 }
 
 # SOFTWARE DEPENDENCIES
