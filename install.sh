@@ -31,6 +31,8 @@
 LANG=en_US.UTF-8
 # This is the name of the app, set it as a variable.
 readonly APPNAME="greenlight"
+readonly APPVERSION="0.9.3"
+
 # Make a directory for files to go.
 if ! [[ -d /tmp/$APPNAME ]]; then
   mkdir /tmp/$APPNAME
@@ -162,7 +164,7 @@ spinner () {
 
 show_welcome () {
   # Show a nice welcome message.
-  local text="${COLOUR_GREEN}This is Greenlight. Greenlight saves you time.\\n\\nThis script will install three free and open-source applications to create a software toolchain. The different software, when used together, is meant to provide a framework for information technology service management (ITSM).\\n\\nHopefully, using this script will save you the time and headaches of finding, installing, and testing the thousands of different software solutions out there. It's all in one place and easily accessible. Find out more at ${COLOUR_PURPLE}https://github.com/scchearn/greenlight\\n\\n${COLOUR_YELLOW}Note: ${COLOUR_GREEN}Although this script installs applications in directories reserved for software packages and uses temporary folders, it is not made to avoid breaking production servers. It is, therefore, better to run this script on a fresh installation.${COLOUR_NC}"
+  local text="${COLOUR_YELLOW}v${APPVERSION}\\n\\n${COLOUR_GREEN}This is Greenlight. Greenlight saves you time.\\n\\nThis script will install three free and open-source applications to create an open-source software toolchain. The different software, when used together, is meant to provide a framework for information technology service management (ITSM).\\n\\nHopefully, using this script will save you the time and headaches of finding, installing, and testing the thousands of different software solutions out there. It's all in one place and easily accessible. Find out more at ${COLOUR_PURPLE}https://github.com/scchearn/greenlight\\n\\n${COLOUR_YELLOW}Note: ${COLOUR_GREEN}This software toolchain is only a prototype and not meant as fully-fledged software. Also, this script installs applications in directories reserved for software packages and won't overwrite other applications. But it is not built to avoid breaking production servers. It is, therefore, recommended to run this script on a fresh installation.${COLOUR_NC}"
   # Check if we're running a shell.
   if ! [[ -z $(stty size > /dev/null 2>&1) ]]; then
     # Let's find the width of the terminal we're running.

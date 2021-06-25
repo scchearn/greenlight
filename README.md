@@ -1,15 +1,15 @@
 # Greenlight
-This is Greenlight. It saves you time. Greenlight is a FOSS for ITSM project.
+This is Greenlight. It saves you time. Greenlight is a FOSS for ITSM project part of a masters degree programme.
 
 ## Purpose
 Installs free and open-source software (FOSS) to manage ICT operations.
 
-This script installs three FOSS applications to create a framework for information technology management. The different software, when used together, is intended to provide a software toolchain for ITSM, based on the seventeen service management practices of the Information Technology Infrastructure Library. 
+This script installs three FOSS applications to create a framework for information technology management (ITSM). The different software, when used together, is intended to provide a software toolchain for ITSM, based on the seventeen service management practices of the Information Technology Infrastructure Library. 
 
 Hopefully, using this script will save you time and trouble finding, installing, and testing hundreds of different software packages. It's all in one place and easily accessible.
 
 #### Note
-Please do not run this script on production servers or any other installation that you do not want to be broken. Although this script tries to keep installing the different packages clean, it is not (yet) created to avoid breaking production type servers. Therefore, it is better to run this script on a fresh installation of any supported operating system. **Also**, feel free to change, modify, or adapt this script to your needs or suggest changes and improvements.  
+This software toolchain is only a prototype and not meant as fully-fledged software. Furthermore, do not run this script on production servers or any other installation that you do not want to be broken. Although this script won't overwrite other software, it is not (yet) built to avoid breaking production type servers. Therefore, it is better to run this script on a fresh installation of any supported operating system. **Also**, feel free to change, modify, or adapt this script to your needs or suggest changes and improvements.  
 
 ## Supported Operating Systems
 The following operating systems are currently supported. **Fedora 32**, **Centos 8**, **Ubuntu 18.04** (Bionic Beaver) and **20.04** (Focal Fossa).
@@ -29,7 +29,7 @@ sudo bash install.sh
 ```
 
 ### Latest Stable Build
-**0.9.0**
+**0.9.2**
 
 |OS                |GLPi   |Zabbix    |Snipe-IT   |
 |------------------|:-----:|:--------:|:---------:|
