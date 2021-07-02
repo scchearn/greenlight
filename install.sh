@@ -29,9 +29,9 @@
 
 # Make sure language is set to UTF-8
 LANG=en_US.UTF-8
-# This is the name of the app, set it as a variable.
+# Name and version of the app.
 readonly APPNAME="greenlight"
-readonly APPVERSION="0.9.3"
+readonly APPVERSION="0.9.4"
 
 # Make a directory for files to go.
 if ! [[ -d /tmp/$APPNAME ]]; then
